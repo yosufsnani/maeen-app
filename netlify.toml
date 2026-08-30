@@ -1,0 +1,7 @@
+[build]
+  functions = "netlify/functions"
+  publish = "."
+  ignore = "git diff --quiet HEAD^ HEAD -- netlify/functions package.json netlify.toml"
+
+[functions]
+  node_bundler = "esbuild"
