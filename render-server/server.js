@@ -21,6 +21,8 @@ app.get('/', (req, res) => {
 });
 
 app.post('/generate-cert-pdf', async (req, res) => {
+  console.log('Received PDF request, html length:', req.body && req.body.html ? req.body.html.length : 'MISSING');
+
   const { html, styles, filename } = req.body || {};
   if (!html) {
     return res.status(400).send('Missing html field');
@@ -46,6 +48,7 @@ app.post('/generate-cert-pdf', async (req, res) => {
 
   let browser = null;
   try {
+    console.log('Launching browser...');
     browser = await puppeteer.launch({
       headless: 'new',
       args: ['--no-sandbox', '--disable-setuid-sandbox'],
@@ -56,12 +59,15 @@ app.post('/generate-cert-pdf', async (req, res) => {
     await page.setContent(fullHtml, { waitUntil: 'networkidle0', timeout: 15000 });
     await page.evaluateHandle('document.fonts.ready');
 
+    console.log('Generating PDF...');
     const pdfBuffer = await page.pdf({
       format: 'A4',
       landscape: true,
       printBackground: true,
       margin: { top: '0mm', bottom: '0mm', left: '0mm', right: '0mm' },
     });
+
+    console.log('PDF generated, size in bytes:', pdfBuffer.length);
 
     await browser.close();
 
@@ -72,7 +78,9 @@ app.post('/generate-cert-pdf', async (req, res) => {
       'Content-Disposition': `attachment; filename="${encodeURIComponent(safeName)}.pdf"`,
     });
     res.send(pdfBuffer);
+    console.log('Response sent successfully.');
   } catch (err) {
+    console.error('ERROR generating PDF:', err);
     if (browser) { try { await browser.close(); } catch (e) {} }
     res.status(500).json({ error: err && err.message ? err.message : 'فشل توليد الملف' });
   }
