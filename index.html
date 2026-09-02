@@ -3014,7 +3014,8 @@ window.maeenAlert = function(message, tone){
     <button class="btn-send-portfolio" onclick="sendReportToPortfolio('appreciation-certificate', certPreviewEntryId, this)" id="sendBtn_certPreviewBody">📑 إرسال إلى ملف الإنجاز</button>
     <div class="modal-actions" style="margin-top:10px;">
       <button class="btn-cancel" onclick="closeCertPreview()">رجوع</button>
-      <button class="btn-save" onclick="doPrintCert()">طباعة / حفظ PDF</button>
+      <button class="btn-cancel" id="certSavePdfBtn" onclick="doSaveCertPdf()">حفظ PDF</button>
+      <button class="btn-save" id="certPrintBtn" onclick="doPrintCert()">طباعة</button>
     </div>
   </div>
 </div>
@@ -9460,10 +9461,110 @@ function previewCert(id){
   document.getElementById('certPreviewOverlay').classList.add('show');
 }
 function closeCertPreview(){ document.getElementById('certPreviewOverlay').classList.remove('show'); }
+// ————— طباعة الشهادة —————
+// الجوال لا يفتح نافذة الطباعة لملف PDF، لكنه يفتحها لصفحة HTML. ولأن المتصفح قد
+// يطفئ خلفيات CSS عند الطباعة (فتطلع الشهادة بيضاء) ولا يلتزم دائماً بالاتجاه الأفقي،
+// نطبع الشهادة كـ«صورة واحدة» مولّدة من الخادم: الصور تُطبع بألوانها دائماً، والنتيجة
+// مطابقة على كل الأجهزة.
+function isMobileDevice(){
+  return /Android|iPhone|iPad|iPod|Opera Mini|IEMobile/i.test(navigator.userAgent || '');
+}
+
+// قاعدة @page لا يمكن أن تتغير حسب العنصر، فنحقنها لحظة الطباعة.
+// على الجوال نبقي الورقة عمودية وندوّر الصورة 90° لأن كثيراً من متصفحات الجوال
+// تتجاهل size:landscape — وبهذا تطلع الشهادة كاملة بالحجم الصحيح على كل جهاز.
+function applyCertPrintRules(){
+  const rotate = isMobileDevice();
+  let s = document.getElementById('cert-print-page-rule');
+  if(!s){ s = document.createElement('style'); s.id = 'cert-print-page-rule'; }
+  s.textContent = `
+  @media print{
+    @page{ size:${rotate ? 'A4 portrait' : '297mm 210mm'}; margin:0 !important; }
+    #printView{ position:absolute; top:0; right:0; bottom:0; left:0; margin:0 !important; padding:0 !important; }
+    #printView .cert-print-wrap{
+      width:${rotate ? '210mm' : '297mm'}; height:${rotate ? '297mm' : '210mm'};
+      position:relative; overflow:hidden; margin:0; padding:0;
+    }
+    #printView .cert-print-wrap img{
+      display:block; width:297mm; height:210mm;
+      ${rotate
+        ? 'position:absolute; top:50%; left:50%; transform:translate(-50%,-50%) rotate(90deg);'
+        : 'position:absolute; top:0; left:0;'}
+    }
+  }`;
+  // يُلحق بنهاية body ليتغلب على قواعد @page الموجودة أعلى الصفحة
+  document.body.appendChild(s);
+}
+
 async function doPrintCert(){
   const entry = rptEntries('appreciation-certificate').find(e=> e.id === certPreviewEntryId);
   if(!entry) return;
-  const btn = document.querySelector('#certPreviewOverlay .btn-save');
+  const btn = document.getElementById('certPrintBtn');
+  const originalLabel = btn ? btn.textContent : '';
+  if (btn) { btn.disabled = true; btn.textContent = 'جارٍ التحضير...'; }
+  if (typeof window.maeenNotify === 'function') window.maeenNotify('جارٍ تحضير الشهادة للطباعة...', 'success');
+
+  const pv = document.getElementById('printView');
+  const originalPrintView = pv ? pv.innerHTML : '';
+  let objectUrl = null;
+
+  const cleanup = () => {
+    if (pv) pv.innerHTML = originalPrintView;
+    if (objectUrl) { URL.revokeObjectURL(objectUrl); objectUrl = null; }
+    const s = document.getElementById('cert-print-page-rule');
+    if (s && s.parentNode) s.parentNode.removeChild(s);
+  };
+
+  try {
+    const certHtml = buildCertPageHtml(entry);
+    const styles = Array.from(document.querySelectorAll('style')).map(s => s.textContent).join('\n');
+    const imageUrl = window.MAEEN_PDF_FUNCTION_URL.replace('/generate-cert-pdf', '/generate-cert-image');
+
+    const response = await fetch(imageUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ html: certHtml, styles: styles, scale: 3 }),
+    });
+    if (!response.ok) {
+      let msg = 'خطأ من الخادم (' + response.status + ')';
+      try { const j = await response.json(); if (j && j.error) msg = j.error; } catch (e) {}
+      throw new Error(msg);
+    }
+
+    objectUrl = URL.createObjectURL(await response.blob());
+
+    // ننتظر تحميل الصورة فعلياً قبل الطباعة، وإلا طلعت ورقة بيضاء
+    const img = new Image();
+    img.src = objectUrl;
+    await new Promise((resolve, reject) => {
+      img.onload = resolve;
+      img.onerror = () => reject(new Error('تعذر تحميل صورة الشهادة'));
+    });
+    if (img.decode) { try { await img.decode(); } catch (e) {} }
+
+    pv.innerHTML = '<div class="cert-print-wrap"></div>';
+    pv.firstElementChild.appendChild(img);
+    applyCertPrintRules();
+
+    const done = () => { window.removeEventListener('afterprint', done); cleanup(); };
+    window.addEventListener('afterprint', done);
+    // شبكة أمان: بعض المتصفحات لا تطلق afterprint
+    setTimeout(() => { if (document.getElementById('cert-print-page-rule')) done(); }, 60000);
+
+    window.print();
+  } catch (err) {
+    console.error(err);
+    cleanup();
+    window.maeenAlert('تعذر تحضير الشهادة للطباعة: ' + (err && err.message ? err.message : 'خطأ غير متوقع') + '. تأكد من اتصالك بالإنترنت وحاول مرة أخرى.');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = originalLabel; }
+  }
+}
+
+async function doSaveCertPdf(){
+  const entry = rptEntries('appreciation-certificate').find(e=> e.id === certPreviewEntryId);
+  if(!entry) return;
+  const btn = document.getElementById('certSavePdfBtn');
   const originalLabel = btn ? btn.textContent : '';
   if (btn) { btn.disabled = true; btn.textContent = 'جارٍ التوليد...'; }
   if (typeof window.maeenNotify === 'function') window.maeenNotify('جارٍ توليد ملف PDF من الخادم، قد يأخذ عدة ثوانٍ...', 'success');
