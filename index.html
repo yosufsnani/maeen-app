@@ -497,9 +497,10 @@
     box-shadow:0 2px 14px rgba(20,20,30,.12);
     container-type:inline-size;
   }
-  /* الشعار يوضع فوق العنوان المطبوع بالخلفية مباشرة (المساحة الفاضية أعلى كل قالب)،
-     والمحتوى يبدأ بعد العنوان وزخرفته السفلية (تنتهي عملياً عند ~40% من الارتفاع). */
-  .cert-card > .cert-logo-img{position:absolute; top:3%; left:50%; transform:translateX(-50%); width:12cqw; height:auto; object-fit:contain;}
+  /* الشعار يوضع داخل الشريط الفاضي بين إطار كل قالب وعنوانه المطبوع. الشريط يختلف
+     من قالب لآخر (قُيس من الصور نفسها)، فلكل قالب موضعه ومقاسه أدناه. والمحتوى يبدأ
+     بعد العنوان وزخرفته السفلية (تنتهي عملياً عند ~40% من الارتفاع). */
+  .cert-card > .cert-logo-img{position:absolute; left:50%; transform:translateX(-50%); height:auto; object-fit:contain;}
   .cert-content{
     position:absolute; inset:46% 9% 9%;
     display:flex; flex-direction:column; align-items:center; text-align:center;
@@ -516,6 +517,14 @@
   .cert-sign-row > div{max-width:48%; display:flex; flex-direction:column; align-items:center; gap:.45cqw;}
   .cert-sign-row > div > span:first-child{font-size:1.85cqw; font-weight:700; color:#2B2620;}
   .cert-sign-row .cert-pill{font-size:2cqw; padding:.4cqw 1.4cqw;}
+
+  /* موضع الشعار داخل الشريط الفاضي أعلى كل قالب */
+  .cert-tpl-1 > .cert-logo-img{top:9.8%;  width:12.5cqw;}
+  .cert-tpl-2 > .cert-logo-img{top:11.4%; width:12.5cqw;}
+  .cert-tpl-3 > .cert-logo-img{top:16%;   width:6.2cqw;}
+  .cert-tpl-4 > .cert-logo-img{top:8.6%;  width:12.5cqw;}
+  .cert-tpl-5 > .cert-logo-img{top:8.4%;  width:10.2cqw;}
+  .cert-tpl-6 > .cert-logo-img{top:9.1%;  width:9.9cqw;}
 
   /* لون شارة الاسم/الصف لكل قالب - مأخوذ من اللون الغالب على خلفيته */
   .cert-tpl-1 .cert-pill{background:linear-gradient(90deg,#1B3550,#0F2438);}
