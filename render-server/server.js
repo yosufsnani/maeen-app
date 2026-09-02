@@ -78,7 +78,7 @@ app.post('/generate-cert-pdf', async (req, res) => {
       'Content-Type': 'application/pdf',
       'Content-Disposition': `attachment; filename="${encodeURIComponent(safeName)}.pdf"`,
     });
-    res.send(pdfBuffer);
+    res.send(Buffer.from(pdfBuffer));
     console.log('Response sent successfully.');
   } catch (err) {
     console.error('ERROR generating PDF:', err);
