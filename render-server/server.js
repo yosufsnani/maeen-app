@@ -56,6 +56,7 @@ app.post('/generate-cert-pdf', async (req, res) => {
 
     const page = await browser.newPage();
     await page.setViewport({ width: 1200, height: 850 });
+    await page.emulateMediaType('screen');
     await page.setContent(fullHtml, { waitUntil: 'networkidle0', timeout: 15000 });
     await page.evaluateHandle('document.fonts.ready');
 
