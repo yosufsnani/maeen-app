@@ -9,14 +9,10 @@ const app = express();
 app.use(express.json({ limit: '10mb' }));
 
 // ---- أبعاد البطاقة ----
-// البطاقة مصممة بمقاسات ثابتة بالبكسل (خط 12.5px، ترويسة 156px... إلخ)، وتُعرض في
-// معاينة الموقع بعرض ~604px. لو مدّدناها لعرض A4 كامل (1123px) يبقى المحتوى بحجمه
-// الأصلي وتظهر فراغات كبيرة. الحل: نرسمها بمقاس المعاينة نفسه ثم نكبّرها بالكامل
-// بـ transform: scale — فيطلع الـ PDF مطابقاً للمعاينة تماماً في كل القوالب.
-const DESIGN_W = 604;                          // عرض البطاقة في المعاينة (px)
-const DESIGN_H = DESIGN_W * 210 / 297;         // = 427.07px (نسبة A4 أفقي)
+// البطاقة مبنية بوحدات مرنة (cqw) نسبةً لعرض حاويتها (.cert-card)، فتُرسم مباشرة
+// بمقاسها الحقيقي 297×210mm بدون أي تكبير لاحق. هذا يضمن أن خلفية الصورة المضمّنة
+// في كل قالب (300dpi) تظهر بدقتها الكاملة في PDF، بدل أن تُرسم بمقاس صغير ثم تُمدَّد.
 const PAGE_W_PX = (297 / 25.4) * 96;           // عرض A4 أفقي بالبكسل = 1122.52
-const SCALE = PAGE_W_PX / DESIGN_W;            // = 1.8585
 
 app.use((req, res, next) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -51,13 +47,11 @@ function buildPrintHtml(html, styles) {
   html, body { width:297mm; height:210mm; margin:0; padding:0; overflow:hidden; background:#fff; }
 
   .cert-page{
-    width:${DESIGN_W}px; height:${DESIGN_H}px;
+    width:297mm; height:210mm;
     max-width:none; min-width:0; margin:0; padding:0;
     box-sizing:border-box;
     position:absolute; top:0; left:0;
     zoom:1 !important;                 /* تحييد zoom القادم من إعداد «حجم التقرير» */
-    transform: scale(${SCALE});
-    transform-origin: top left;
   }
   .cert-card{
     width:100%; height:100%; min-height:0;
@@ -166,4 +160,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { app, buildPrintHtml, DESIGN_W, DESIGN_H, SCALE };
+module.exports = { app, buildPrintHtml };
