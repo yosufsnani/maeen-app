@@ -1498,22 +1498,30 @@ window.maeenAlert = function(message, tone){
       <button class="sgal-menu" onclick="toggleSgalMenu(true)">⋯</button>
     </div>
 
-    <div class="sgal-gallery-wrap">
-      <div class="sgal-gallery" id="sgalGallery"></div>
-      <div class="sgal-thumbs" id="sgalThumbs"></div>
+    <div class="sgal-stage" id="sgalStage"></div>
+    <div class="sgal-caption" id="sgalCaption"></div>
+    <div class="sgal-thumbs" id="sgalThumbs"></div>
+
+    <div class="sgal-meta">
+      <div class="sgal-meta-title" id="sgalMetaTitle"></div>
+      <div class="sgal-hint" id="sgalHint"></div>
     </div>
-
-    <div class="sgal-hint" id="sgalHint"></div>
-
-    <div class="sgal-list" id="sgalList"></div>
   </div>
 </div>
 
 <div class="sgal-attach-backdrop" id="sgalAttachBackdrop" onclick="toggleSgalMenu(false)"></div>
 <div class="sgal-attach-menu" id="sgalAttachMenu">
-  <div class="sgal-attach-item" onclick="sgalAttachImage()"><span>🖼️</span> إرفاق صورة</div>
-  <div class="sgal-attach-item" onclick="sgalAttachFile()"><span>📄</span> إرفاق ملف</div>
-  <div class="sgal-attach-item" onclick="sgalGoToTemplate()"><span>📊</span> تقرير جاهز من القوالب</div>
+  <div class="sgal-menu-panel" id="sgalMenuMain">
+    <div class="sgal-attach-item" onclick="sgalShowAddMenu()"><span>＋</span> إضافة شاهد</div>
+    <div class="sgal-attach-item" id="sgalMenuOpen" onclick="sgalOpenCurrent()"><span>👁️</span> فتح الشاهد</div>
+    <div class="sgal-attach-item is-danger" id="sgalMenuDelete" onclick="sgalDeleteCurrent()"><span>🗑️</span> حذف الشاهد</div>
+  </div>
+  <div class="sgal-menu-panel" id="sgalMenuAdd" hidden>
+    <div class="sgal-attach-item is-back" onclick="sgalShowMainMenu()"><span>›</span> رجوع</div>
+    <div class="sgal-attach-item" onclick="sgalAttachImage()"><span>🖼️</span> إرفاق صورة</div>
+    <div class="sgal-attach-item" onclick="sgalAttachFile()"><span>📄</span> إرفاق ملف</div>
+    <div class="sgal-attach-item" onclick="sgalGoToTemplate()"><span>📊</span> إنشاء تقرير من القوالب</div>
+  </div>
 </div>
 <input type="file" accept="image/*" multiple id="sgal-image-input" style="display:none;" onchange="handleSgalImages(this)">
 <input type="file" id="sgal-file-input" style="display:none;" onchange="handleSgalFile(this)">
@@ -4196,64 +4204,229 @@ function escapeHtml(str){
 let sgalCtx = {catId:null, subId:null, title:null};
 function openSubGallery(catId, subId, title){
   sgalCtx = {catId, subId, title};
+  sgalIndex = 0;
   document.getElementById('sgalTitle').textContent = title;
+  document.getElementById('sgalMetaTitle').textContent = title;
   document.getElementById('sgalHint').textContent = SUB_HINTS[subId] || '';
   document.getElementById('sgalHint').style.display = SUB_HINTS[subId] ? 'block' : 'none';
   renderSubGallery();
   document.getElementById('subGalleryOverlay').classList.add('show');
+  requestAnimationFrame(sgalFitDocs);
 }
+document.addEventListener('DOMContentLoaded', () => {
+  const stage = document.getElementById('sgalStage');
+  let ticking = false;
+  stage?.addEventListener('scroll', () => {
+    if (ticking) return;
+    ticking = true;
+    requestAnimationFrame(() => { ticking = false; maeenSafe('تتبّع المستعرض', sgalSyncToScroll); });
+  }, { passive: true });
+  window.addEventListener('resize', () => maeenSafe('مقياس معاينة التقرير', sgalFitDocs));
+});
+
 function closeSubGallery(){
   document.getElementById('subGalleryOverlay').classList.remove('show');
   toggleSgalMenu(false);
   render();
 }
-function getSgalImages(){
+/* ===== عارض شواهد القسم =====
+   القسم يُعرض كمستعرض مستندات لا كقائمة: الشاهد الحالي يملأ الشاشة —
+   صورةً كان أو ملفاً أو تقريراً — وشريط مصغّرات أسفله للتنقّل. */
+let sgalSlides = [];
+let sgalIndex = 0;
+
+function sgalBuildSlides(){
   const entries = getEntries(sgalCtx.catId, sgalCtx.subId);
-  const imgs = [];
-  entries.forEach(e=>{
-    if(e.images && e.images.length) e.images.forEach(src=> imgs.push(src));
+  const slides = [];
+  entries.forEach(entry => {
+    if (entry.images && entry.images.length) {
+      entry.images.forEach((src, i) => slides.push({ kind: 'image', src, entry, part: i + 1, of: entry.images.length }));
+    } else if (entry.reportRef) {
+      slides.push({ kind: 'report', entry });
+    } else if (entry.attachment) {
+      slides.push({ kind: 'file', entry });
+    } else {
+      slides.push({ kind: 'note', entry });
+    }
   });
-  return imgs;
+  slides.forEach((slide, i) => { slide.index = i; });
+  return slides;
 }
+
+/* التقرير صفحة A4 كاملة، فيُصغَّر بالمقياس ليملأ عرض المستعرض */
+function sgalReportHtml(entry){
+  const ref = entry.reportRef;
+  if (!ref || typeof BUILD_FN_MAP === 'undefined') return null;
+  const build = BUILD_FN_MAP[ref.rptKey];
+  if (typeof build !== 'function') return null;
+  const live = typeof rptEntries === 'function'
+    ? rptEntries(ref.rptKey).find(e => String(e.id) === String(ref.entryId))
+    : null;
+  const source = live || entry.reportSnapshot;
+  if (!source) return null;
+  try { return build(source); }
+  catch (error) { console.error('maeen: تعذّر بناء معاينة التقرير', error); return null; }
+}
+
+function sgalFitDocs(){
+  document.querySelectorAll('#sgalStage .ev-doc').forEach(box => {
+    const inner = box.firstElementChild;
+    if (!inner) return;
+    const width = box.clientWidth;
+    if (!width) return;
+    const scale = width / 794;                     // 794px = عرض A4 عند 96dpi
+    inner.style.transform = `scale(${scale})`;
+    box.style.height = Math.round(inner.scrollHeight * scale) + 'px';
+  });
+}
+
+function sgalSlideHtml(slide){
+  if (slide.kind === 'image') {
+    return `<div class="ev-slide"><img class="ev-photo" src="${slide.src}" alt=""></div>`;
+  }
+  if (slide.kind === 'report') {
+    const html = sgalReportHtml(slide.entry);
+    if (html) return `<div class="ev-slide is-openable" onclick="sgalOpenSlide(${slide.index})"><div class="ev-doc"><div class="ev-doc-inner">${html}</div></div></div>`;
+    return `<div class="ev-slide"><div class="ev-placeholder"><span>📊</span><b>${escapeHtml(slide.entry.title || 'تقرير')}</b><small>تعذّر عرض التقرير — ربما حُذف من القوالب.</small></div></div>`;
+  }
+  if (slide.kind === 'file') {
+    const att = slide.entry.attachment || {};
+    return `<div class="ev-slide is-openable" onclick="sgalOpenSlide(${slide.index})"><div class="ev-placeholder"><span>📄</span><b>${escapeHtml(att.name || slide.entry.title || 'ملف مرفق')}</b><small>${escapeHtml(att.type || 'ملف محفوظ')}</small></div></div>`;
+  }
+  return `<div class="ev-slide"><div class="ev-placeholder"><span>📝</span><b>${escapeHtml(slide.entry.title || 'شاهد')}</b><small>${escapeHtml(slide.entry.desc || 'بلا مرفق')}</small></div></div>`;
+}
+
+function sgalThumbHtml(slide, i){
+  const active = i === sgalIndex ? ' is-active' : '';
+  const inner = slide.kind === 'image'
+    ? `<img src="${slide.src}" alt="">`
+    : `<span>${slide.kind === 'report' ? '📊' : slide.kind === 'file' ? '📄' : '📝'}</span>`;
+  return `<button type="button" class="sgal-thumb${active}" onclick="sgalJumpTo(${i})" aria-label="الشاهد ${i + 1}">${inner}</button>`;
+}
+
 function renderSubGallery(){
-  const entries = getEntries(sgalCtx.catId, sgalCtx.subId);
-  const imgs = getSgalImages();
-  const galleryEl = document.getElementById('sgalGallery');
-  const thumbsEl = document.getElementById('sgalThumbs');
-  if(imgs.length === 0){
-    galleryEl.innerHTML = `<div class="sgal-gallery-empty">لا توجد صور بعد</div>`;
-    thumbsEl.innerHTML = '';
+  sgalSlides = sgalBuildSlides();
+  if (sgalIndex >= sgalSlides.length) sgalIndex = Math.max(0, sgalSlides.length - 1);
+
+  const stage = document.getElementById('sgalStage');
+  const thumbs = document.getElementById('sgalThumbs');
+  const caption = document.getElementById('sgalCaption');
+
+  if (!sgalSlides.length) {
+    stage.innerHTML = `<div class="ev-slide"><div class="ev-empty">لا توجد شواهد بعد — أضف واحداً من زر ⋯</div></div>`;
+    thumbs.innerHTML = '';
+    caption.textContent = '';
   } else {
-    galleryEl.innerHTML = imgs.map(src=>`<img src="${src}">`).join('');
-    thumbsEl.innerHTML = imgs.map((src,i)=>`<img src="${src}" class="${i===0?'active':''}" onclick="sgalJumpTo(${i})">`).join('');
+    stage.innerHTML = sgalSlides.map(sgalSlideHtml).join('');
+    thumbs.innerHTML = sgalSlides.map(sgalThumbHtml).join('');
+    sgalRenderCaption();
+    requestAnimationFrame(sgalFitDocs);
+    const target = stage.children[sgalIndex];
+    if (target) stage.scrollLeft = target.offsetLeft - (stage.clientWidth - target.clientWidth) / 2;
   }
-  const listEl = document.getElementById('sgalList');
-  if(entries.length === 0){
-    listEl.innerHTML = `<div class="empty-note">لا توجد شواهد بعد</div>`;
-  } else {
-    listEl.innerHTML = entries.slice().reverse().map(e=>`
-      <div class="entry-plain">
-        <div>
-          <div class="et">${escapeHtml(e.title)}</div>
-          <div class="em">${escapeHtml(e.date || '')}${e.desc ? ' · ' + escapeHtml(e.desc) : ''}${e.images && e.images.length ? ' · ' + e.images.length + ' صورة' : ''}</div>
-        </div>
-        <div style="display:flex; flex-direction:column; gap:6px; align-items:flex-end;">
-          ${e.reportRef ? `<button class="entry-del" style="color:var(--blue-cta);" onclick="previewLinkedReport('${e.reportRef.rptKey}', ${e.reportRef.entryId})">عرض التقرير</button>` : ''}
-          <button class="entry-del" onclick="deleteEntry('${sgalCtx.catId}', '${sgalCtx.subId}', ${e.id}); renderSubGallery();">حذف</button>
-        </div>
-      </div>
-    `).join('');
-  }
+  sgalSyncMenu();
 }
+
+function sgalRenderCaption(){
+  const slide = sgalSlides[sgalIndex];
+  const caption = document.getElementById('sgalCaption');
+  if (!slide || !caption) return;
+  const bits = [slide.entry.title, slide.entry.date].filter(Boolean);
+  if (slide.of > 1) bits.push(`صورة ${slide.part} من ${slide.of}`);
+  caption.textContent = bits.join(' · ');
+}
+
+/* يبقي المصغّرة والوصف متوافقين مع ما يظهر فعلاً أثناء السحب */
+function sgalSyncToScroll(){
+  const stage = document.getElementById('sgalStage');
+  if (!stage || !sgalSlides.length) return;
+  const middle = stage.scrollLeft + stage.clientWidth / 2;
+  let nearest = 0, best = Infinity;
+  [...stage.children].forEach((child, i) => {
+    const distance = Math.abs(child.offsetLeft + child.clientWidth / 2 - middle);
+    if (distance < best) { best = distance; nearest = i; }
+  });
+  if (nearest === sgalIndex) return;
+  sgalIndex = nearest;
+  sgalRenderCaption();
+  document.querySelectorAll('.sgal-thumb').forEach((t, i) => t.classList.toggle('is-active', i === sgalIndex));
+  sgalSyncMenu();
+}
+
 function sgalJumpTo(i){
-  const galleryEl = document.getElementById('sgalGallery');
-  const imgEls = galleryEl.querySelectorAll('img');
-  if(imgEls[i]) imgEls[i].scrollIntoView({behavior:'smooth', inline:'center', block:'nearest'});
-  document.querySelectorAll('.sgal-thumbs img').forEach((t,idx)=> t.classList.toggle('active', idx===i));
+  const stage = document.getElementById('sgalStage');
+  const target = stage?.children[i];
+  if (!target) return;
+  sgalIndex = i;
+  stage.scrollTo({ left: target.offsetLeft - (stage.clientWidth - target.clientWidth) / 2, behavior: 'smooth' });
+  sgalRenderCaption();
+  document.querySelectorAll('.sgal-thumb').forEach((t, idx) => t.classList.toggle('is-active', idx === i));
+  sgalSyncMenu();
 }
+
+/* قائمة ⋯ بمستويين: الإجراءات، ثم أنواع الإضافة */
 function toggleSgalMenu(show){
   document.getElementById('sgalAttachMenu').classList.toggle('show', show);
   document.getElementById('sgalAttachBackdrop').classList.toggle('show', show);
+  if (show) sgalShowMainMenu();
+}
+function sgalShowMainMenu(){
+  document.getElementById('sgalMenuMain').hidden = false;
+  document.getElementById('sgalMenuAdd').hidden = true;
+}
+function sgalShowAddMenu(){
+  document.getElementById('sgalMenuMain').hidden = true;
+  document.getElementById('sgalMenuAdd').hidden = false;
+}
+
+/* «فتح» و«حذف» يعملان على الشاهد المعروض، فيختفيان حين لا يوجد */
+function sgalSyncMenu(){
+  const slide = sgalSlides[sgalIndex];
+  const openItem = document.getElementById('sgalMenuOpen');
+  const deleteItem = document.getElementById('sgalMenuDelete');
+  if (deleteItem) deleteItem.hidden = !slide;
+  if (!openItem) return;
+  openItem.hidden = !slide || slide.kind === 'image' || slide.kind === 'note';
+  if (slide) openItem.lastChild.textContent = slide.kind === 'file' ? ' تنزيل المرفق' : ' فتح التقرير';
+}
+
+/* النقر على الشاهد نفسه يفتحه، لا من القائمة وحدها */
+function sgalOpenSlide(i){
+  sgalIndex = i;
+  sgalOpenCurrent();
+}
+
+function sgalOpenCurrent(){
+  const slide = sgalSlides[sgalIndex];
+  if (!slide) return;
+  toggleSgalMenu(false);
+  if (slide.kind === 'report') {
+    const ref = slide.entry.reportRef;
+    previewLinkedReport(ref.rptKey, ref.entryId);
+    return;
+  }
+  if (slide.kind === 'file') {
+    const att = slide.entry.attachment;
+    if (!att || !att.dataUrl) return;
+    const link = document.createElement('a');
+    link.href = att.dataUrl;
+    link.download = att.name || 'مرفق-معين';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  }
+}
+
+async function sgalDeleteCurrent(){
+  const slide = sgalSlides[sgalIndex];
+  if (!slide) return;
+  toggleSgalMenu(false);
+  const accepted = await window.maeenConfirm(`هل تريد حذف «${slide.entry.title || 'هذا الشاهد'}»؟`);
+  if (!accepted) return;
+  deleteEntry(sgalCtx.catId, sgalCtx.subId, slide.entry.id);
+  sgalIndex = 0;
+  renderSubGallery();
+  render();
 }
 function sgalAttachImage(){
   toggleSgalMenu(false);
@@ -11476,13 +11649,60 @@ body, .app{transition:background-color .18s ease, color .18s ease;}
 .btn-save:disabled{background:var(--m-surface-2); color:var(--m-dim);}
 .btn-cancel{background:var(--m-surface-2); color:var(--m-ink);}
 .btn-send-portfolio{background:var(--m-accent-soft); color:var(--m-accent); border-radius:12px; font:500 13.5px/1 var(--m-ui);}
-.sub-gallery-sheet{background:var(--m-bg);}
+.sub-gallery-sheet{background:var(--m-bg); overflow-y:auto;}
+
+/* ---------- عارض شواهد القسم ---------- */
+.sgal-stage{
+  display:flex; gap:12px; padding:16px 20px 0; overflow-x:auto;
+  scroll-snap-type:x mandatory; scrollbar-width:none; -webkit-overflow-scrolling:touch;
+}
+.sgal-stage::-webkit-scrollbar{display:none;}
+.ev-slide{
+  flex:0 0 100%; scroll-snap-align:center; border:2px solid var(--m-accent); border-radius:18px;
+  background:var(--m-surface); overflow:hidden; min-height:180px;
+  display:flex; align-items:center; justify-content:center;
+}
+.ev-slide > .ev-photo{width:100%; height:auto; display:block; object-fit:contain; max-height:62vh;}
+.ev-slide.is-openable{cursor:pointer;}
+.ev-slide.is-openable:active{transform:scale(.995);}
+.ev-doc{width:100%; overflow:hidden; background:#fff;}
+.ev-doc-inner{width:794px; transform-origin:top right; pointer-events:none;}
+.ev-placeholder, .ev-empty{
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px;
+  padding:36px 22px; text-align:center; color:var(--m-muted); font:300 12.5px/1.7 var(--m-ui);
+  min-height:180px;
+}
+.ev-placeholder span{font-size:30px;}
+.ev-placeholder b{color:var(--m-ink); font:500 14.5px/1.4 var(--m-ui);}
+.ev-empty{color:var(--m-muted);}
+
+.sgal-caption{
+  padding:10px 20px 0; text-align:center; color:var(--m-muted); font:300 12px/1.6 var(--m-ui);
+}
+.sgal-thumbs{display:flex; gap:8px; padding:12px 20px 0; overflow-x:auto; scrollbar-width:none;}
+.sgal-thumbs::-webkit-scrollbar{display:none;}
+.sgal-thumb{
+  flex:0 0 auto; width:52px; height:62px; padding:0; border:1px solid var(--m-line);
+  border-radius:9px; background:var(--m-surface-2); overflow:hidden; cursor:pointer;
+  display:flex; align-items:center; justify-content:center; opacity:.65; transition:opacity .15s, border-color .15s;
+}
+.sgal-thumb img{width:100%; height:100%; object-fit:cover;}
+.sgal-thumb span{font-size:19px;}
+.sgal-thumb.is-active{opacity:1; border-color:var(--m-accent); border-width:2px;}
+
+.sgal-meta{padding:22px 20px 32px;}
+.sgal-meta-title{color:var(--m-ink); font:600 18px/1.3 var(--m-ui);}
+
+/* قائمة ⋯ */
+.sgal-attach-item.is-danger{color:var(--m-danger);}
+.sgal-attach-item.is-back{color:var(--m-muted); font-weight:400;}
+.sgal-menu-panel[hidden]{display:none !important;}
 .sub-gallery-header{border-bottom:1px solid var(--m-line);}
 .sgal-back, .sgal-menu{color:var(--m-ink);}
 .sgal-title{color:var(--m-ink); font:600 16px/1 var(--m-ui);}
 .sgal-gallery img, .sgal-gallery-empty{background:var(--m-surface-2);}
 .sgal-gallery-empty{color:var(--m-muted);}
-.sgal-hint{background:var(--m-surface); border:1px solid var(--m-line); color:var(--m-muted);}
+.sgal-hint{margin:8px 0 0 !important; padding:0 !important; background:transparent !important; border:0 !important; color:var(--m-muted); font:300 12.5px/1.8 var(--m-ui);}
 .sgal-attach-menu{background:var(--m-surface); box-shadow:var(--m-shadow-lg);}
 .sgal-attach-item{color:var(--m-ink); font:500 15px/1 var(--m-ui);}
 .sgal-attach-item:active{background:var(--m-surface-2);}
