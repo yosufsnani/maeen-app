@@ -9809,7 +9809,7 @@ window.maeenInitApp = async function(){
         textColumn.appendChild(details);
       }
       const actionColumn = row.lastElementChild;
-      if (actionColumn) {
+      if (actionColumn && entry.attachment) {          // الشاهد المرتبط بتقرير لا مرفق له يُنزَّل
         const button = document.createElement('button');
         button.type = 'button';
         button.className = 'entry-del maeen-attachment-download';
@@ -9852,7 +9852,8 @@ window.maeenInitApp = async function(){
     if (typeof originalRender === 'function') {
       window.renderSubGallery = function renderSubGalleryWithAttachments() {
         const result = originalRender.apply(this, arguments);
-        enhanceGallery();
+        // التزيين إضافة تجميلية: خطأ فيه يجب ألا يمنع فتح القسم
+        try { enhanceGallery(); } catch (error) { console.error('enhanceGallery:', error); }
         return result;
       };
     }
