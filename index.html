@@ -12460,6 +12460,20 @@ body, .app{transition:background-color .18s ease, color .18s ease;}
 .ev-excel-table td{border:1px solid #E4E4EA; padding:5px 8px;}
 .ev-excel-truncated{margin-top:8px; color:var(--m-muted); font:300 11px/1.5 var(--m-ui);}
 
+/* ---- تخصيص خانات القوالب: إخفاء خانة موجودة، أو إضافة خانة مخصصة ---- */
+.maeen-field-toggle{position:absolute; top:-6px; left:-6px; width:18px; height:18px; border:none; border-radius:50%; background:#f3d9d9; color:#a33; font:700 12px/18px Arial,sans-serif; cursor:pointer; padding:0; text-align:center; z-index:1;}
+.maeen-field-toggle:hover{background:#e8b9b9;}
+.maeen-restore-fields{display:block; width:100%; margin:0 0 14px; padding:8px 10px; border:1px dashed var(--m-line,#ccc); border-radius:8px; background:transparent; color:var(--blue-cta); font:700 11px/1 Tajawal,Arial,sans-serif; cursor:pointer; text-align:center;}
+.maeen-custom-fields{margin:6px 0 16px;}
+.maeen-custom-field-row{display:flex; gap:6px; margin-bottom:8px;}
+.maeen-custom-field-row input{flex:1; min-width:0; padding:10px; border:1px solid var(--m-line,#ddd); border-radius:8px; font-size:13px; font-family:inherit;}
+.maeen-custom-field-row button{flex:0 0 auto; width:34px; border:none; border-radius:8px; background:#f3d9d9; color:#a33; font-size:16px; cursor:pointer;}
+.maeen-add-custom-field{width:100%; padding:10px; border:1px dashed var(--m-line,#ccc); border-radius:8px; background:transparent; color:var(--blue-cta); font:700 12px/1 Tajawal,Arial,sans-serif; cursor:pointer;}
+.maeen-custom-fields-print{margin-top:14px; padding:14px; border:1px dashed #ccc; border-radius:12px; background:#fff;}
+.maeen-custom-fields-print__title{font-weight:800; font-size:12.5px; margin-bottom:8px; color:#1C1C1E;}
+.maeen-custom-fields-print__row{display:flex; justify-content:space-between; gap:10px; padding:5px 0; font-size:12.5px; border-bottom:1px dashed #eee; color:#1C1C1E;}
+.maeen-custom-fields-print__row:last-child{border-bottom:none;}
+
 .sgal-caption{
   padding:10px 20px 0; text-align:center; color:var(--m-muted); font:300 12px/1.6 var(--m-ui);
 }
@@ -12608,6 +12622,218 @@ body, .app{transition:background-color .18s ease, color .18s ease;}
   safeArrange();
   document.addEventListener('DOMContentLoaded', safeArrange);
   window.setTimeout(safeArrange, 600);
+})();
+</script>
+<script>
+/* Design philosophy: ملف إنجاز موثوق — المعلم يقدر يخفي خانة ما تناسبه أو يضيف
+   خانة مخصصة في أي قالب جاهز، دون إعادة بناء كل قالب من قوالب التقارير الـ٢٢. */
+(() => {
+  'use strict';
+  const RPTKEY_TO_OVERLAY = {
+    'classroom-activity': 'actModalOverlay',
+    'school-radio': 'radioModalOverlay',
+    'extra-activity': 'extraModalOverlay',
+    'waiting-period': 'waitModalOverlay',
+    'applied-lesson': 'applModalOverlay',
+    'visit-log': 'visitModalOverlay',
+    'plc-log': 'plcModalOverlay',
+    'parent-contact': 'parentModalOverlay',
+    'strategy-report': 'stratModalOverlay',
+    'tech-tool-report': 'techModalOverlay',
+    'classroom-strategy': 'strategyModalOverlay',
+    'remedial-plan': 'remedialModalOverlay',
+    'enrichment-plan': 'enrichModalOverlay',
+    'enrichment-plan-individual': 'enrichStuModalOverlay',
+    'test-results': 'testresModalOverlay',
+    'test-analysis': 'testAnalysisModalOverlay',
+    'student-honor': 'honorModalOverlay',
+    'appreciation-certificate': 'certModalOverlay',
+    'curriculum-plan': 'currplanModalOverlay',
+    'workshop-run': 'wsrunModalOverlay',
+    'workshop-attend': 'wsattModalOverlay',
+    'learning-styles-report': 'learningStylesModalOverlay',
+  };
+  const OVERLAY_TO_RPTKEY = Object.fromEntries(Object.entries(RPTKEY_TO_OVERLAY).map(([k, v]) => [v, k]));
+
+  let hiddenFields = {};        // { rptKey: [نص التسمية, ...] }
+  let currentRptKey = null;
+  let customFieldsDraft = [];   // [{label, value}] لخانات القالب المفتوح حاليًا فقط
+
+  async function loadHiddenFields() {
+    try {
+      const res = await window.storage.get('maeen-hidden-fields');
+      if (res && res.value) hiddenFields = JSON.parse(res.value);
+    } catch (e) { hiddenFields = {}; }
+  }
+  async function saveHiddenFields() {
+    try { await window.storage.set('maeen-hidden-fields', JSON.stringify(hiddenFields), false); }
+    catch (e) { console.error(e); }
+  }
+
+  /* يحدد العنصر (أو العناصر) الواجب إخفاؤها مع هذه التسمية: حاوية صغيرة خاصة
+     بالحقل إن وُجدت (نمط الأعمدة المزدوجة)، وإلا التسمية + العنصر الذي يليها مباشرة */
+  function fieldRowFor(label, sheet) {
+    const parent = label.parentElement;
+    if (parent && parent !== sheet && parent.children.length <= 3 && !parent.classList.contains('modal-sheet')) {
+      return [parent];
+    }
+    const next = label.nextElementSibling;
+    return next ? [label, next] : [label];
+  }
+
+  // نص التسمية النظيف (بدون النجمة ولا زر «×» المُحقن لاحقًا كابن للعنصر نفسه):
+  // يُلتقط ويُخزَّن مرة واحدة قبل حقن الزر، لأن label.textContent يصير ملوّثًا بعده
+  function fieldLabelText(label) {
+    return label.dataset.maeenFieldText || label.textContent.replace('*', '').trim();
+  }
+
+  function applyHiddenFields(sheet, rptKey) {
+    const hidden = hiddenFields[rptKey] || [];
+    sheet.querySelectorAll('.rep-field-label').forEach(label => {
+      if (!label.dataset.maeenFieldSetup) {
+        const text = fieldLabelText(label);
+        label.dataset.maeenFieldSetup = '1';
+        label.dataset.maeenFieldText = text;
+        label.style.position = 'relative';
+        const toggle = document.createElement('button');
+        toggle.type = 'button';
+        toggle.className = 'maeen-field-toggle';
+        toggle.title = 'إخفاء هذه الخانة';
+        toggle.textContent = '×';
+        toggle.addEventListener('click', async (event) => {
+          event.stopPropagation();
+          fieldRowFor(label, sheet).forEach(el => { el.style.display = 'none'; });
+          hiddenFields[rptKey] = hiddenFields[rptKey] || [];
+          if (!hiddenFields[rptKey].includes(text)) hiddenFields[rptKey].push(text);
+          await saveHiddenFields();
+          refreshRestoreLink(sheet, rptKey);
+        });
+        label.appendChild(toggle);
+      }
+      if (hidden.includes(fieldLabelText(label))) {
+        fieldRowFor(label, sheet).forEach(el => { el.style.display = 'none'; });
+      }
+    });
+    refreshRestoreLink(sheet, rptKey);
+  }
+
+  function refreshRestoreLink(sheet, rptKey) {
+    const hidden = hiddenFields[rptKey] || [];
+    let link = sheet.querySelector('.maeen-restore-fields');
+    if (!hidden.length) { link?.remove(); return; }
+    if (!link) {
+      link = document.createElement('button');
+      link.type = 'button';
+      link.className = 'maeen-restore-fields';
+      sheet.querySelector('.modal-title')?.after(link);
+      link.addEventListener('click', async () => {
+        hiddenFields[rptKey] = [];
+        await saveHiddenFields();
+        sheet.querySelectorAll('.rep-field-label').forEach(label => {
+          fieldRowFor(label, sheet).forEach(el => { el.style.display = ''; });
+        });
+        refreshRestoreLink(sheet, rptKey);
+      });
+    }
+    link.textContent = `إظهار ${hidden.length} ${hidden.length === 1 ? 'خانة مخفية' : 'خانات مخفية'} ←`;
+  }
+
+  function renderCustomFieldsUI(sheet) {
+    let box = sheet.querySelector('.maeen-custom-fields');
+    if (!box) {
+      const actions = sheet.querySelector('.modal-actions');
+      if (!actions) return;
+      box = document.createElement('div');
+      box.className = 'maeen-custom-fields';
+      actions.before(box);
+    }
+    box.innerHTML = `
+      ${customFieldsDraft.length ? '<div class="rep-section-title">خانات مخصصة</div>' : ''}
+      ${customFieldsDraft.map((f, i) => `
+        <div class="maeen-custom-field-row">
+          <input type="text" placeholder="اسم الخانة" value="${escapeHtml(f.label)}" data-maeen-custom-label="${i}">
+          <input type="text" placeholder="القيمة" value="${escapeHtml(f.value)}" data-maeen-custom-value="${i}">
+          <button type="button" data-maeen-custom-remove="${i}">×</button>
+        </div>
+      `).join('')}
+      <button type="button" class="maeen-add-custom-field">+ إضافة خانة مخصصة</button>
+    `;
+    box.querySelectorAll('[data-maeen-custom-label]').forEach(input => {
+      input.addEventListener('input', () => { customFieldsDraft[+input.dataset.maeenCustomLabel].label = input.value; });
+    });
+    box.querySelectorAll('[data-maeen-custom-value]').forEach(input => {
+      input.addEventListener('input', () => { customFieldsDraft[+input.dataset.maeenCustomValue].value = input.value; });
+    });
+    box.querySelectorAll('[data-maeen-custom-remove]').forEach(btn => {
+      btn.addEventListener('click', () => { customFieldsDraft.splice(+btn.dataset.maeenCustomRemove, 1); renderCustomFieldsUI(sheet); });
+    });
+    box.querySelector('.maeen-add-custom-field')?.addEventListener('click', () => {
+      customFieldsDraft.push({ label: '', value: '' });
+      renderCustomFieldsUI(sheet);
+    });
+  }
+
+  function onModalOpened(overlay) {
+    const rptKey = OVERLAY_TO_RPTKEY[overlay.id];
+    if (!rptKey) return;
+    currentRptKey = rptKey;
+    customFieldsDraft = [];
+    const sheet = overlay.querySelector('.modal-sheet');
+    if (!sheet) return;
+    applyHiddenFields(sheet, rptKey);
+    renderCustomFieldsUI(sheet);
+  }
+
+  new MutationObserver(mutations => {
+    mutations.forEach(m => {
+      const el = m.target;
+      if (el.classList && el.classList.contains('modal-overlay') && el.classList.contains('show')) {
+        maeenSafe('تخصيص خانات القالب', () => onModalOpened(el));
+      }
+    });
+  }).observe(document.body, { subtree: true, attributes: true, attributeFilter: ['class'] });
+
+  const originalPersistRpt = window.persistRpt;
+  if (typeof originalPersistRpt === 'function') {
+    window.persistRpt = async function persistRptWithCustomFields() {
+      if (currentRptKey && customFieldsDraft.length) {
+        const clean = customFieldsDraft
+          .map(f => ({ label: f.label.trim(), value: f.value.trim() }))
+          .filter(f => f.label || f.value);
+        if (clean.length) {
+          const arr = rptEntries(currentRptKey);
+          const last = arr[arr.length - 1];
+          if (last) last.customFields = clean;
+        }
+        customFieldsDraft = [];
+      }
+      return originalPersistRpt.apply(this, arguments);
+    };
+  }
+
+  function buildCustomFieldsBlockHtml(fields) {
+    if (!fields || !fields.length) return '';
+    return `
+      <div class="maeen-custom-fields-print">
+        <div class="maeen-custom-fields-print__title">خانات إضافية</div>
+        ${fields.map(f => `<div class="maeen-custom-fields-print__row"><b>${escapeHtml(f.label || '—')}</b><span>${escapeHtml(f.value || '—')}</span></div>`).join('')}
+      </div>
+    `;
+  }
+  if (typeof BUILD_FN_MAP !== 'undefined') {
+    Object.keys(BUILD_FN_MAP).forEach(key => {
+      const original = BUILD_FN_MAP[key];
+      if (typeof original !== 'function') return;
+      BUILD_FN_MAP[key] = function (entry) {
+        const html = original(entry);
+        return entry && entry.customFields && entry.customFields.length
+          ? html + buildCustomFieldsBlockHtml(entry.customFields)
+          : html;
+      };
+    });
+  }
+
+  maeenSafe('تحميل الخانات المخفية', loadHiddenFields);
 })();
 </script>
 </body>
