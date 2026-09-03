@@ -1074,6 +1074,19 @@ window.maeenAlert = function(message, tone){
   const sb = window.supabaseClient;
   let mode = 'signin';
 
+  // maeenInitApp يُعرَّف في سكربت لاحق داخل الصفحة. لو انتهى التحقق من الجلسة
+  // قبل اكتمال تحليل المستند (كاش دافئ، أو شبكة سريعة) كان الاستدعاء يقع على
+  // دالة غير معرّفة بعد، فلا تُحمَّل البيانات ولا تُرسم قائمة المعايير.
+  function whenAppReady(){
+    if (typeof window.maeenInitApp === 'function') return Promise.resolve();
+    if (document.readyState !== 'loading') return Promise.resolve();
+    return new Promise(resolve => document.addEventListener('DOMContentLoaded', () => resolve(), { once: true }));
+  }
+  async function startApp(){
+    await whenAppReady();
+    if (typeof window.maeenInitApp === 'function') await window.maeenInitApp();
+  }
+
   // وضع المعاينة المحلية: لو الملف انفتح مباشرة من الجهاز (بدون رفعه على رابط)، نتخطى تسجيل الدخول
   // للمراجعة البصرية السريعة فقط — البيانات ما تُحفظ بهالوضع. الموقع المنشور يبقى يطلب تسجيل دخول طبيعي.
   if (window.location.protocol === 'file:') {
@@ -1083,7 +1096,7 @@ window.maeenAlert = function(message, tone){
     banner.textContent = '⚠️ وضع معاينة محلي — بدون تسجيل دخول، البيانات لن تُحفظ';
     banner.style.cssText = 'position:fixed; top:0; left:0; right:0; z-index:10000; background:#B45309; color:#fff; text-align:center; font:800 11.5px Tajawal,Arial,sans-serif; padding:6px 10px;';
     document.body.appendChild(banner);
-    if (typeof window.maeenInitApp === 'function') window.maeenInitApp();
+    startApp();
     return;
   }
 
@@ -1163,7 +1176,7 @@ window.maeenAlert = function(message, tone){
     overlay.style.display = 'none';
     if (started) return;
     started = true;
-    if (typeof window.maeenInitApp === 'function') await window.maeenInitApp();
+    await startApp();
   }
 
   updateModeUI();
