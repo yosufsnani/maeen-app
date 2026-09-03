@@ -475,6 +475,10 @@
   .evtext-title{font-size:21px; font-weight:900; color:var(--ink); margin-top:130px;}
   .evtext-date{font-size:13px; color:var(--dim); margin-top:10px;}
   .evtext-desc{font-size:14px; color:var(--ink); margin-top:24px; line-height:1.9; max-width:80%; margin-left:auto; margin-right:auto;}
+  .evexcel-page{position:relative; page-break-before:always; padding:40px 30px 30px; text-align:center;}
+  .ev-excel-table-wrap{margin-top:20px; text-align:right; overflow-x:auto;}
+  .ev-excel-table-wrap table{border-collapse:collapse; font-size:11px; width:100%;}
+  .ev-excel-table-wrap td{border:1px solid #E4E4EA; padding:5px 7px;}
 
   /* شريط سفلي ثابت العلامة يتكرر بكل صفحة مطبوعة */
   .print-footer-fixed{display:none;}
@@ -719,6 +723,11 @@
 </script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script type="module">
+  import * as pdfjsLib from 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.min.mjs';
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs';
+  window.pdfjsLib = pdfjsLib;
+</script>
 <script>
 (() => {
   'use strict';
@@ -1395,8 +1404,8 @@ window.maeenAlert = function(message, tone){
       </div>
 
       <div class="dash-card" style="text-align:right;">
-        <div class="dash-title">عدد الشواهد مقابل الحد الأقصى</div>
-        <div class="dash-desc">مقارنة الشواهد المضافة بالحد المسموح (4) لكل معيار</div>
+        <div class="dash-title">نسبة توثيق أقسام كل معيار</div>
+        <div class="dash-desc">نسبة الأقسام التي أُضيف لها شاهد واحد على الأقل من إجمالي أقسام كل معيار</div>
         <div class="bar-row" id="barChart"></div>
       </div>
     </div>
@@ -3737,21 +3746,22 @@ function render(){
 /* حالة المعيار: مكتمل / بدأ ويحتاج متابعة / لم يبدأ — تحدّد لون الحلقة والحافة */
 function catState(cat){
   if(cat.id === 'perf') return 'guide';
-  const n = countForCriterion(cat.id);
-  if(n >= MAX_PER_CRITERION) return 'done';
-  return n > 0 ? 'todo' : 'none';
+  const {filled, total} = criterionSubsProgress(cat.id);
+  if(total > 0 && filled >= total) return 'done';
+  return filled > 0 ? 'todo' : 'none';
 }
 
 function catRingHtml(cat, state){
   if(state === 'guide') return `<div class="cat-ring cat-ring--guide" aria-hidden="true"><span>؟</span></div>`;
-  const n = countForCriterion(cat.id);
+  const {filled, total} = criterionSubsProgress(cat.id);
   const CIRC = 103.7;                                   // 2πr عند r=16.5
-  const offset = CIRC * (1 - Math.min(n, MAX_PER_CRITERION) / MAX_PER_CRITERION);
+  const ratio = total > 0 ? filled / total : 0;
+  const offset = CIRC * (1 - ratio);
   const inner = state === 'done'
     ? `<svg class="cat-ring__tick" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>`
-    : `<span>${n}</span>`;
+    : `<span>${filled}</span>`;
   return `
-    <div class="cat-ring" role="img" aria-label="${n} من ${MAX_PER_CRITERION} شواهد">
+    <div class="cat-ring" role="img" aria-label="${filled} من ${total} أقسام موثّقة">
       <svg viewBox="0 0 40 40" aria-hidden="true">
         <circle class="cat-ring__t" cx="20" cy="20" r="16.5"></circle>
         <circle class="cat-ring__v" cx="20" cy="20" r="16.5" stroke-dasharray="${CIRC}" stroke-dashoffset="${offset.toFixed(1)}"></circle>
@@ -3802,13 +3812,21 @@ const CRITERIA_META = [
   {id:'analysis', weight:10},
   {id:'assessment', weight:10},
 ];
-const MAX_PER_CRITERION = 4;
-
 function countForCriterion(catId){
   const cat = DATA.find(c=> c.id === catId);
   if(!cat) return 0;
   if(cat.subs) return cat.subs.reduce((sum,s)=> sum + getEntries(cat.id, s.id).length, 0);
   return getEntries(cat.id).length;
+}
+
+/* معيار مكتمل = كل أقسامه الحالية (الأساسية + المضافة يدوياً) أخذ شاهداً واحداً على الأقل.
+   يُعاد احتسابها ديناميكياً من cat.subs، فتساير أي قسم يُضاف أو يُحذف تلقائياً. */
+function criterionSubsProgress(catId){
+  const cat = DATA.find(c=> c.id === catId);
+  if(!cat || !cat.subs || !cat.subs.length) return {filled:0, total:0};
+  const total = cat.subs.length;
+  const filled = cat.subs.filter(s=> getEntries(cat.id, s.id).length > 0).length;
+  return {filled, total};
 }
 
 function switchView(view){
@@ -4615,12 +4633,12 @@ function renderDashboard(){
   let doneCount = 0;
   let startedCount = 0;
   const perCriterion = CRITERIA_META.map(m=>{
-    const count = countForCriterion(m.id);
-    const ratio = Math.min(count, MAX_PER_CRITERION) / MAX_PER_CRITERION;
+    const {filled, total} = criterionSubsProgress(m.id);
+    const ratio = total > 0 ? filled / total : 0;
     weighted += ratio * m.weight;
-    if(count >= MAX_PER_CRITERION) doneCount++;
-    else if(count >= 1) startedCount++;
-    return {...m, count, ratio};
+    if(total > 0 && filled >= total) doneCount++;
+    else if(filled >= 1) startedCount++;
+    return {...m, count: filled, total, ratio};
   });
 
   const overallPct = Math.round(weighted);
@@ -4703,6 +4721,22 @@ function sgalBuildSlides(){
       entry.images.forEach((src, i) => slides.push({ kind: 'image', src, entry, part: i + 1, of: entry.images.length }));
     } else if (entry.reportRef) {
       slides.push({ kind: 'report', entry });
+    } else if (entry.attachment && attachmentIsPdf(entry.attachment)) {
+      const cached = sgalPdfCache.get(entry.id);
+      if (cached && cached !== 'pending' && cached !== 'error' && cached.images.length) {
+        cached.images.forEach((src, i) => slides.push({ kind: 'pdfpage', src, entry, part: i + 1, of: cached.images.length }));
+      } else {
+        slides.push({ kind: cached === 'error' ? 'file' : 'pdfloading', entry });
+        if (!sgalPdfCache.has(entry.id)) sgalEnsurePdfRendered(entry);
+      }
+    } else if (entry.attachment && attachmentIsExcel(entry.attachment)) {
+      const cached = sgalExcelCache.get(entry.id);
+      if (cached && cached !== 'pending' && cached !== 'error') {
+        slides.push({ kind: 'excel', entry, table: cached });
+      } else {
+        slides.push({ kind: cached === 'error' ? 'file' : 'excelloading', entry });
+        if (!sgalExcelCache.has(entry.id)) sgalEnsureExcelRendered(entry);
+      }
     } else if (entry.attachment) {
       slides.push({ kind: 'file', entry });
     } else {
@@ -4711,6 +4745,80 @@ function sgalBuildSlides(){
   });
   slides.forEach((slide, i) => { slide.index = i; });
   return slides;
+}
+
+/* ---- معاينة المرفقات: PDF كصور صفحات عبر pdf.js، إكسل كجدول HTML عبر SheetJS ---- */
+function attachmentIsPdf(att){
+  if(!att) return false;
+  return (att.type || '').toLowerCase() === 'application/pdf' || /\.pdf$/i.test(att.name || '');
+}
+function attachmentIsExcel(att){
+  if(!att) return false;
+  const type = (att.type || '').toLowerCase();
+  const name = (att.name || '').toLowerCase();
+  return type.includes('spreadsheet') || type.includes('ms-excel') || /\.(xlsx|xls)$/.test(name);
+}
+function dataUrlToUint8Array(dataUrl){
+  const base64 = (dataUrl.split(',')[1] || '');
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for(let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+async function renderPdfPagesAsImages(dataUrl, maxPages){
+  maxPages = maxPages || 15;
+  if(typeof pdfjsLib === 'undefined') throw new Error('pdfjsLib not loaded');
+  const pdf = await pdfjsLib.getDocument({ data: dataUrlToUint8Array(dataUrl) }).promise;
+  const pageCount = Math.min(pdf.numPages, maxPages);
+  const images = [];
+  for(let i = 1; i <= pageCount; i++){
+    const page = await pdf.getPage(i);
+    const viewport = page.getViewport({ scale: 1.5 });
+    const canvas = document.createElement('canvas');
+    canvas.width = viewport.width;
+    canvas.height = viewport.height;
+    await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+    images.push(canvas.toDataURL('image/jpeg', 0.85));
+  }
+  return { images, truncated: pdf.numPages > maxPages, totalPages: pdf.numPages };
+}
+function renderExcelAsHtmlTable(dataUrl){
+  if(typeof XLSX === 'undefined') throw new Error('XLSX not loaded');
+  const wb = XLSX.read(dataUrl.split(',')[1] || '', { type: 'base64' });
+  const sheetName = wb.SheetNames[0];
+  const rows = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], { header: 1, defval: '' });
+  const MAX_ROWS = 200;
+  const shown = rows.slice(0, MAX_ROWS);
+  const tableHtml = `
+    <table class="ev-excel-table"><tbody>
+      ${shown.map(row => `<tr>${row.map(cell => `<td>${escapeHtml(String(cell ?? ''))}</td>`).join('')}</tr>`).join('')}
+    </tbody></table>
+    ${rows.length > MAX_ROWS ? `<div class="ev-excel-truncated">تُعرض أول ${MAX_ROWS} صفاً من أصل ${rows.length}.</div>` : ''}
+  `;
+  return { sheetName, tableHtml, rowCount: rows.length };
+}
+const sgalPdfCache = new Map();
+const sgalExcelCache = new Map();
+function sgalGalleryIsOpen(){
+  return !!document.getElementById('subGalleryOverlay')?.classList.contains('show');
+}
+async function sgalEnsurePdfRendered(entry){
+  if(sgalPdfCache.has(entry.id)) return;
+  sgalPdfCache.set(entry.id, 'pending');
+  try{ sgalPdfCache.set(entry.id, await renderPdfPagesAsImages(entry.attachment.dataUrl)); }
+  catch(e){ console.error('maeen: تعذّر عرض ملف PDF', e); sgalPdfCache.set(entry.id, 'error'); }
+  if(sgalGalleryIsOpen()) renderSubGallery();
+}
+async function sgalEnsureExcelRendered(entry){
+  if(sgalExcelCache.has(entry.id)) return;
+  sgalExcelCache.set(entry.id, 'pending');
+  // تأجيل حقيقي (لا مجرد وعد فوري) كي تكتمل دورة renderSubGallery الحالية أولاً؛
+  // بدونه يعيد renderExcelAsHtmlTable (المتزامنة) استدعاء renderSubGallery من داخل
+  // sgalBuildSlides نفسها، فتطابق النسخة الخارجية الأقدم على نتيجة الاستدعاء الداخلي الطازجة.
+  await new Promise(resolve => setTimeout(resolve, 0));
+  try{ sgalExcelCache.set(entry.id, renderExcelAsHtmlTable(entry.attachment.dataUrl)); }
+  catch(e){ console.error('maeen: تعذّر عرض ملف إكسل', e); sgalExcelCache.set(entry.id, 'error'); }
+  if(sgalGalleryIsOpen()) renderSubGallery();
 }
 
 /* التقرير صفحة A4 كاملة، فيُصغَّر بالمقياس ليملأ عرض المستعرض */
@@ -4741,8 +4849,17 @@ function sgalFitDocs(){
 }
 
 function sgalSlideHtml(slide){
-  if (slide.kind === 'image') {
+  if (slide.kind === 'image' || slide.kind === 'pdfpage') {
     return `<div class="ev-slide"><img class="ev-photo" src="${slide.src}" alt=""></div>`;
+  }
+  if (slide.kind === 'pdfloading') {
+    return `<div class="ev-slide"><div class="ev-placeholder"><span>📄</span><b>جارٍ تحضير معاينة PDF…</b><small>${escapeHtml(slide.entry.attachment?.name || '')}</small></div></div>`;
+  }
+  if (slide.kind === 'excel') {
+    return `<div class="ev-slide"><div class="ev-excel-wrap"><div class="ev-excel-name">${escapeHtml(slide.entry.attachment?.name || '')}</div>${slide.table.tableHtml}</div></div>`;
+  }
+  if (slide.kind === 'excelloading') {
+    return `<div class="ev-slide"><div class="ev-placeholder"><span>📊</span><b>جارٍ تحضير معاينة الإكسل…</b><small>${escapeHtml(slide.entry.attachment?.name || '')}</small></div></div>`;
   }
   if (slide.kind === 'report') {
     const html = sgalReportHtml(slide.entry);
@@ -4758,9 +4875,10 @@ function sgalSlideHtml(slide){
 
 function sgalThumbHtml(slide, i){
   const active = i === sgalIndex ? ' is-active' : '';
-  const inner = slide.kind === 'image'
+  const iconOf = kind => kind === 'report' ? '📊' : (kind === 'excel' || kind === 'excelloading') ? '📊' : (kind === 'file' || kind === 'pdfloading') ? '📄' : '📝';
+  const inner = (slide.kind === 'image' || slide.kind === 'pdfpage')
     ? `<img src="${slide.src}" alt="">`
-    : `<span>${slide.kind === 'report' ? '📊' : slide.kind === 'file' ? '📄' : '📝'}</span>`;
+    : `<span>${iconOf(slide.kind)}</span>`;
   return `<button type="button" class="sgal-thumb${active}" onclick="sgalJumpTo(${i})" aria-label="الشاهد ${i + 1}">${inner}</button>`;
 }
 
@@ -4916,43 +5034,6 @@ function sgalAttachImage(){
 function sgalAttachFile(){
   toggleSgalMenu(false);
   document.getElementById('sgal-file-input').click();
-}
-async function handleSgalImages(input){
-  const files = Array.from(input.files).slice(0, 10);
-  if(!files.length) return;
-  const images = [];
-  for(const f of files){ try{ images.push(await compressImage(f)); }catch(e){ console.error(e); } }
-  if(!images.length) return;
-  const entry = {
-    id: Date.now(),
-    title: 'صور مرفقة',
-    date: new Date().toISOString().slice(0,10),
-    desc: '',
-    images
-  };
-  getEntries(sgalCtx.catId, sgalCtx.subId).push(entry);
-  persist();
-  renderSubGallery();
-  input.value = '';
-}
-function handleSgalFile(input){
-  const file = input.files[0];
-  if(!file) return;
-  const reader = new FileReader();
-  reader.onload = function(){
-    const entry = {
-      id: Date.now(),
-      title: file.name,
-      date: new Date().toISOString().slice(0,10),
-      desc: 'ملف مرفق',
-      images: []
-    };
-    getEntries(sgalCtx.catId, sgalCtx.subId).push(entry);
-    persist();
-    renderSubGallery();
-  };
-  reader.readAsDataURL(file);
-  input.value = '';
 }
 function sgalGoToTemplate(){
   toggleSgalMenu(false);
@@ -5113,6 +5194,16 @@ function buildEvidenceTextPageHtml(sectionTitle, entry){
     </div>
   `;
 }
+function buildEvidenceExcelPageHtml(sectionTitle, entry, table){
+  return `
+    <div class="evexcel-page">
+      <div class="evphoto-ribbon-wrap"><div class="evphoto-ribbon">${escapeHtml(sectionTitle)}</div></div>
+      <div class="evtext-title" style="margin-top:70px; font-size:16px;">${escapeHtml(entry.attachment?.name || entry.title)}</div>
+      ${entry.date ? `<div class="evtext-date">${escapeHtml(entry.date)}</div>` : ''}
+      <div class="ev-excel-table-wrap">${table.tableHtml}</div>
+    </div>
+  `;
+}
 // يضمن أن كل تقرير (rpt2/rpt3) يبقى بصفحة واحدة بالضبط، حتى لو كان محتواه طويلاً،
 // عبر تصغير المحتوى الداخلي فقط (بدون التأثير على ارتفاع الصفحة الثابت أو قص أي بيانات)
 function fitReportPagesToOnePage(){
@@ -5130,9 +5221,31 @@ function printNow(){
   fitReportPagesToOnePage();
   window.print();
 }
-function doPrint(){
+async function doPrint(){
   toggleMenu(false);
   const pv = document.getElementById('printView');
+
+  // مرحلة تحضير: نحوّل أي مرفق PDF إلى صور صفحات، وأي مرفق إكسل إلى جدول HTML،
+  // قبل بناء صفحات الطباعة (التحويل غير متزامن، فيجب أن يكتمل قبل window.print()).
+  const pdfPagesByEntry = new Map();
+  const excelTableByEntry = new Map();
+  const attachedEntries = [];
+  DATA.forEach(cat=>{
+    if(cat.id === 'perf') return;
+    const all = cat.subs ? cat.subs.flatMap(s=> getEntries(cat.id, s.id)) : getEntries(cat.id);
+    all.forEach(e=>{ if(e.attachment && !e.reportRef && !(e.images && e.images.length)) attachedEntries.push(e); });
+  });
+  if(attachedEntries.length) window.maeenNotify?.('جارٍ تحضير المرفقات (PDF/إكسل) للطباعة…', 'success');
+  for(const e of attachedEntries){
+    try{
+      if(attachmentIsPdf(e.attachment)){
+        pdfPagesByEntry.set(e.id, (await renderPdfPagesAsImages(e.attachment.dataUrl)).images);
+      } else if(attachmentIsExcel(e.attachment)){
+        excelTableByEntry.set(e.id, renderExcelAsHtmlTable(e.attachment.dataUrl));
+      }
+    }catch(err){ console.error('maeen: تعذّر تحضير مرفق للطباعة', err); }
+  }
+
   let pages = buildCoverPageHtml();
   DATA.forEach(cat=>{
     if(cat.id === 'perf') return;
@@ -5162,7 +5275,19 @@ function doPrint(){
         });
         return;
       }
-      // لا تقرير مرتبط ولا صور: صفحة نصية بسيطة حتى لا يضيع الشاهد من الطباعة
+      if(e.attachment){
+        const pdfPages = pdfPagesByEntry.get(e.id);
+        if(pdfPages && pdfPages.length){
+          pdfPages.forEach(src=>{ bodyPages += buildEvidencePhotoPageHtml(sectionTitle, e, src); });
+          return;
+        }
+        const excelTable = excelTableByEntry.get(e.id);
+        if(excelTable){
+          bodyPages += buildEvidenceExcelPageHtml(sectionTitle, e, excelTable);
+          return;
+        }
+      }
+      // لا تقرير مرتبط ولا صور ولا مرفق مدعوم للعرض: صفحة نصية بسيطة حتى لا يضيع الشاهد من الطباعة
       bodyPages += buildEvidenceTextPageHtml(sectionTitle, e);
     }
     if(cat.subs){
@@ -10692,30 +10817,34 @@ window.maeenInitApp = async function(){
         return;
       }
       if (selected.length > MAX_GALLERY_IMAGES) notify(`تم اختيار أول ${MAX_GALLERY_IMAGES} صور فقط.`, 'error');
-      notify('يجري ضغط الصور وإضافتها إلى الشاهد…', 'success');
-      const images = [];
+      notify('يجري ضغط الصور وإضافتها كشواهد منفصلة…', 'success');
+      // كل صورة شاهد مستقل بذاته (يُحتسب في العدّاد ويُطبع كصفحة منفردة)،
+      // لذا تُحفظ كل صورة في مُدخل خاص بها بدل تجميعها في مُدخل واحد.
+      const entries = getEntries(sgalCtx.catId, sgalCtx.subId);
+      let saved = 0;
       for (const file of files) {
         try {
-          images.push(await compressImage(file));
+          const image = await compressImage(file);
+          entries.push({
+            id: Date.now() + saved,
+            title: 'صورة مرفقة',
+            date: new Date().toISOString().slice(0, 10),
+            desc: '',
+            images: [image]
+          });
+          saved++;
         } catch (error) {
           console.error(error);
         }
       }
-      if (!images.length) {
+      if (!saved) {
         notify('تعذر قراءة الصور المختارة. حاول بصور أخرى.', 'error');
         return;
       }
-      getEntries(sgalCtx.catId, sgalCtx.subId).push({
-        id: Date.now(),
-        title: 'صور مرفقة',
-        date: new Date().toISOString().slice(0, 10),
-        desc: `${images.length} صورة محفوظة ضمن هذا القسم`,
-        images
-      });
       await persist();
       renderSubGallery();
       input.value = '';
-      notify(`تم حفظ ${images.length} صورة ضمن هذا القسم.`, 'success');
+      notify(`تم حفظ ${saved} ${saved === 1 ? 'صورة' : 'صور'} كشواهد منفصلة ضمن هذا القسم.`, 'success');
     };
 
     window.handleSgalFile = async function handleSgalFileWithAttachment(input) {
@@ -10842,14 +10971,13 @@ window.maeenInitApp = async function(){
   const normalize = (value) => String(value ?? '').toLowerCase().normalize('NFD').replace(/[\u064B-\u065F\u0670\u0640]/g, '').replace(/[\u0300-\u036f]/g, '').trim();
   const currentCriteria = () => (typeof DATA === 'undefined' ? [] : DATA.filter(item => item.id !== 'perf'));
   const evidenceCount = (id) => typeof countForCriterion === 'function' ? countForCriterion(id) : 0;
-  const goalPerCriterion = () => typeof MAX_PER_CRITERION === 'number' ? MAX_PER_CRITERION : 4;
+  const subsProgress = (id) => typeof criterionSubsProgress === 'function' ? criterionSubsProgress(id) : {filled:0, total:0};
   const wait = (callback, duration = 80) => window.setTimeout(callback, duration);
 
   function getFollowUpItems() {
-    const goal = goalPerCriterion();
     return currentCriteria().map((criterion) => {
-      const count = evidenceCount(criterion.id);
-      return { ...criterion, count, remaining: Math.max(goal - count, 0), complete: count >= goal };
+      const {filled, total} = subsProgress(criterion.id);
+      return { ...criterion, count: filled, total, remaining: Math.max(total - filled, 0), complete: total > 0 && filled >= total };
     }).filter(item => !item.complete).sort((a, b) => b.remaining - a.remaining || a.count - b.count);
   }
 
@@ -10871,13 +10999,13 @@ window.maeenInitApp = async function(){
     const priorityItems = items.slice(0, 3);
     panel.innerHTML = `
       <div class="maeen-follow-up-heading"><div><span>متابعة عملية</span><h2>ما الذي يحتاج إلى توثيق؟</h2></div><b>${items.length} معيار</b></div>
-      <p class="maeen-follow-up-intro">الهدف العملي لكل معيار هو ${goalPerCriterion()} شواهد. ابدأ بالمعيار الذي لم يوثق بعد، ثم أضف شاهداً واحداً في كل مرة.</p>
+      <p class="maeen-follow-up-intro">يكتمل المعيار عندما يحصل كل قسم من أقسامه على شاهد واحد على الأقل. ابدأ بالمعيار الذي لم يوثق بعد، ثم وثّق قسماً واحداً في كل مرة.</p>
       <div class="maeen-priority-list">${priorityItems.length ? priorityItems.map((item, index) => `
         <button type="button" class="maeen-priority-row" data-maeen-criterion="${escape(item.id)}">
           <span class="maeen-priority-number">${index + 1}</span>
-          <span class="maeen-priority-copy"><strong>${escape(item.title)}</strong><small>${item.count ? `يتبقى ${item.remaining} من ${goalPerCriterion()} شواهد` : `لم يبدأ التوثيق بعد · يحتاج ${item.remaining} شواهد`}</small></span>
+          <span class="maeen-priority-copy"><strong>${escape(item.title)}</strong><small>${item.count ? `يتبقى ${item.remaining} من ${item.total} أقسام` : `لم يبدأ التوثيق بعد · يحتاج ${item.remaining} ${item.remaining === 1 ? 'قسماً' : 'أقسام'}`}</small></span>
           <span class="maeen-priority-action">فتح المعيار ←</span>
-        </button>`).join('') : `<div class="maeen-follow-up-complete">ممتاز، وصلت جميع المعايير إلى الهدف المقترح من الشواهد.</div>`}</div>`;
+        </button>`).join('') : `<div class="maeen-follow-up-complete">ممتاز، وثّقت شاهداً واحداً على الأقل في كل قسم من كل معيار.</div>`}</div>`;
     dashboard.append(panel);
     panel.querySelectorAll('[data-maeen-criterion]').forEach(button => button.addEventListener('click', () => openCriterion(button.dataset.maeenCriterion)));
   }
@@ -10999,11 +11127,10 @@ window.maeenInitApp = async function(){
 /* Design philosophy: ملف إنجاز موثوق — criterion colors communicate progress and next actions, while the journey area reads like a professional file workflow. */
 (() => {
   'use strict';
-  const goal = () => typeof MAX_PER_CRITERION === 'number' ? MAX_PER_CRITERION : 4;
   const criteria = () => typeof DATA === 'undefined' ? [] : DATA.filter(item => item.id !== 'perf');
-  const countFor = id => typeof countForCriterion === 'function' ? countForCriterion(id) : 0;
+  const subsProgress = id => typeof criterionSubsProgress === 'function' ? criterionSubsProgress(id) : {filled:0, total:0};
   const criterionFromTitle = title => criteria().find(item => item.title === title);
-  const chooseNext = () => criteria().map(item => ({...item, count: countFor(item.id)})).filter(item => item.count < goal()).sort((a,b) => a.count-b.count)[0];
+  const chooseNext = () => criteria().map(item => ({...item, ...subsProgress(item.id)})).filter(item => item.total > 0 && item.filled < item.total).sort((a,b) => a.filled-b.filled)[0];
 
   function drawJourneyCallout() {
     const strip = document.getElementById('maeen-trust-strip');
@@ -11024,7 +11151,7 @@ window.maeenInitApp = async function(){
       });
     }
     const next = chooseNext();
-    callout.innerHTML = next ? `<span>الإجراء التالي</span><strong>${next.count ? `أضف ${goal()-next.count} شواهد إلى ${next.title}` : `ابدأ توثيق ${next.title}`}</strong><button type="button" data-maeen-open-next>فتح المعيار ←</button>` : `<span>حالة الملف</span><strong>اكتمل الهدف المقترح لجميع المعايير</strong><button type="button" data-maeen-open-next disabled>ملف منظم</button>`;
+    callout.innerHTML = next ? `<span>الإجراء التالي</span><strong>${next.filled ? `وثّق ${next.total-next.filled} ${next.total-next.filled === 1 ? 'قسماً' : 'أقسام'} في ${next.title}` : `ابدأ توثيق ${next.title}`}</strong><button type="button" data-maeen-open-next>فتح المعيار ←</button>` : `<span>حالة الملف</span><strong>اكتمل الهدف المقترح لجميع المعايير</strong><button type="button" data-maeen-open-next disabled>ملف منظم</button>`;
   }
 
   function decorateCriterionCards() {
@@ -11034,9 +11161,9 @@ window.maeenInitApp = async function(){
       const title = card.querySelector('.cat-title')?.textContent.trim();
       const criterion = criterionFromTitle(title);
       if (!criterion) return;
-      const count = countFor(criterion.id);
-      const remaining = Math.max(goal() - count, 0);
-      const state = count >= goal() ? 'complete' : count ? 'started' : 'empty';
+      const {filled, total} = subsProgress(criterion.id);
+      const remaining = Math.max(total - filled, 0);
+      const state = total > 0 && filled >= total ? 'complete' : filled ? 'started' : 'empty';
       const color = card.querySelector('.cat-tab')?.style.background || criterion.color || '#176f80';
       card.dataset.maeenProgress = state;
       card.style.setProperty('--maeen-criterion-color', color);
@@ -11046,7 +11173,7 @@ window.maeenInitApp = async function(){
         status.className = 'maeen-criterion-status';
         card.querySelector('.cat-title-wrap')?.append(status);
       }
-      const label = state === 'complete' ? `مكتمل · ${count} شواهد` : state === 'started' ? `موثق جزئياً · يتبقى ${remaining}` : `لم يبدأ · المطلوب ${remaining} شواهد`;
+      const label = state === 'complete' ? `مكتمل · ${total} أقسام موثّقة` : state === 'started' ? `موثق جزئياً · يتبقى ${remaining} ${remaining === 1 ? 'قسماً' : 'أقسام'}` : `لم يبدأ · المطلوب توثيق ${total} ${total === 1 ? 'قسم' : 'أقسام'}`;
       status.innerHTML = `<i aria-hidden="true"></i>${label}<em>التالي: ${state === 'complete' ? 'مراجعة التقرير' : 'اختر قسماً'}</em>`;
     });
   }
@@ -11717,14 +11844,14 @@ body.maeen-show-persistence-tools #maeen-data-tools { display: flex !important; 
   /* حلقة التقدّم في الرئيسية — نفس الحساب الموزون المستخدم في لوحة التقدم */
   const AR = n => String(n);
   const updateRing = () => {
-    const goal = typeof MAX_PER_CRITERION === 'number' ? MAX_PER_CRITERION : 4;
     const meta = typeof CRITERIA_META === 'undefined' ? [] : CRITERIA_META;
     let weighted = 0, done = 0, evidence = 0;
     meta.forEach(m => {
-      const count = typeof countForCriterion === 'function' ? countForCriterion(m.id) : 0;
-      evidence += count;
-      weighted += (Math.min(count, goal) / goal) * m.weight;
-      if (count >= goal) done++;
+      evidence += typeof countForCriterion === 'function' ? countForCriterion(m.id) : 0;
+      const {filled, total} = typeof criterionSubsProgress === 'function' ? criterionSubsProgress(m.id) : {filled:0, total:0};
+      const ratio = total > 0 ? filled / total : 0;
+      weighted += ratio * m.weight;
+      if (total > 0 && filled >= total) done++;
     });
     const pct = Math.round(weighted);
     const CIRC = 527.8;                                  // 2πr عند r=84
@@ -11739,16 +11866,15 @@ body.maeen-show-persistence-tools #maeen-data-tools { display: flex !important; 
   const update = () => {
     updateRing();
     const criteria = typeof DATA === 'undefined' ? [] : DATA.filter(item => item.id !== 'perf');
-    const goal = typeof MAX_PER_CRITERION === 'number' ? MAX_PER_CRITERION : 4;
-    const next = criteria.map(item => ({ item, count: typeof countForCriterion === 'function' ? countForCriterion(item.id) : 0 })).filter(row => row.count < goal).sort((a,b) => a.count - b.count)[0];
+    const next = criteria.map(item => ({ item, ...(typeof criterionSubsProgress === 'function' ? criterionSubsProgress(item.id) : {filled:0, total:0}) })).filter(row => row.total > 0 && row.filled < row.total).sort((a,b) => a.filled - b.filled)[0];
     if (!next) {
       panel.classList.add('is-done');
       panel.innerHTML = '<div class="maeen-smart-next__head"><i></i>اكتمل الملف</div><strong>أحسنت، اكتملت التغطية المقترحة لكل المعايير</strong><p>يمكنك الآن مراجعة التقارير وتجهيزها للطباعة.</p>';
       return;
     }
     panel.classList.remove('is-done');
-    const remaining = goal - next.count;
-    panel.innerHTML = `<div class="maeen-smart-next__head"><i></i>التالي</div><strong>${next.count ? `أضف ${remaining} ${remaining === 1 ? 'شاهداً' : 'شواهد'} إلى ${next.item.title}` : `وثّق شاهداً في ${next.item.title}`}</strong><p>نبدأ بالأولوية الأقل توثيقاً لتقدّم متوازن.</p><button type="button">ابدأ الآن</button>`;
+    const remaining = next.total - next.filled;
+    panel.innerHTML = `<div class="maeen-smart-next__head"><i></i>التالي</div><strong>${next.filled ? `وثّق ${remaining} ${remaining === 1 ? 'قسماً' : 'أقسام'} في ${next.item.title}` : `وثّق شاهداً في ${next.item.title}`}</strong><p>نبدأ بالأولوية الأقل توثيقاً لتقدّم متوازن.</p><button type="button">ابدأ الآن</button>`;
     panel.querySelector('button')?.addEventListener('click', () => { switchView('sections'); try { openCats.add(next.item.id); render(); } catch (_) {} window.setTimeout(() => document.querySelector('#catList .cat-card:not(.cat-perf)')?.scrollIntoView({behavior:'smooth',block:'center'}), 90); });
   };
   const previousRender = window.render;
@@ -11832,7 +11958,7 @@ body.maeen-show-persistence-tools #maeen-data-tools { display: flex !important; 
 
 /* ---------- ٢. جزر فاتحة: المطبوعات لا تتبع النمط الداكن أبداً ---------- */
 .cert-page, .shw-page, .rpt2-page, .rpt3-page,
-.evphoto-page, .evtext-page, .cover-divider-page{
+.evphoto-page, .evtext-page, .evexcel-page, .cover-divider-page{
   --bg:#EFF6FB; --card:#FFFFFF; --ink:#1C1C1E; --dim:#9A9AA2;
   --blue-cta:#0EA5E9; --sheet-shadow:0 2px 10px rgba(20,20,30,.06);
   color:#1C1C1E;
@@ -12328,6 +12454,11 @@ body, .app{transition:background-color .18s ease, color .18s ease;}
 .ev-placeholder span{font-size:30px;}
 .ev-placeholder b{color:var(--m-ink); font:500 14.5px/1.4 var(--m-ui);}
 .ev-empty{color:var(--m-muted);}
+.ev-excel-wrap{width:100%; max-height:62vh; overflow:auto; background:#fff; padding:10px;}
+.ev-excel-name{margin-bottom:8px; font:600 12.5px/1.4 var(--m-ui); color:var(--m-ink);}
+.ev-excel-table{border-collapse:collapse; font-size:11.5px; white-space:nowrap;}
+.ev-excel-table td{border:1px solid #E4E4EA; padding:5px 8px;}
+.ev-excel-truncated{margin-top:8px; color:var(--m-muted); font:300 11px/1.5 var(--m-ui);}
 
 .sgal-caption{
   padding:10px 20px 0; text-align:center; color:var(--m-muted); font:300 12px/1.6 var(--m-ui);
