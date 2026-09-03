@@ -18,6 +18,17 @@
     document.documentElement.setAttribute('data-theme-pref', pref);
   })();
 </script>
+<script>
+  /* التطبيق مبني كسلسلة من «المزيّنات»: كل سكربت يلفّ دالة سابقة (render،
+     renderDashboard، renderSubGallery…) ويضيف عليها لوحة أو تفصيلاً. الخطأ في
+     أي حلقة كان يُسقط بقية السلسلة بصمت — ومنه أعطال سابقة: قائمة معايير فارغة،
+     وقسم لا يُفتح. maeenSafe يعزل كل خطوة تزيين: تفشل وحدها، وتُسجَّل في الطرفية،
+     وتكمل بقية الواجهة عملها. */
+  window.maeenSafe = function maeenSafe(label, step){
+    try { return step(); }
+    catch (error) { console.error('maeen: تعذّر تنفيذ «' + label + '»', error); }
+  };
+</script>
 <style>
   :root{
     --bg:#EFF6FB;
@@ -9828,6 +9839,8 @@ window.maeenInitApp = async function(){
     const originalPrint = window.printNow;
     if (typeof originalPrint === 'function') {
       window.printNow = function printPortfolioReport() {
+        let restore = () => {};
+        maeenSafe('تهيئة الطباعة', () => {
         const titleElement = document.querySelector('[id$="PreviewOverlay"].show .rpt-title, [id$="PreviewOverlay"].show .shw-etitle, [id$="PreviewOverlay"].show .cert-title, #printView .rpt-title, #printView .shw-etitle, #printView .cert-title');
         const originalTitle = document.title;
         const isCert = !!document.querySelector('#printView .cert-page');
@@ -9835,7 +9848,7 @@ window.maeenInitApp = async function(){
         const reportTitle = (titleElement?.textContent || fallbackTitle).trim().replace(/[\\/:*?"<>|]/g, '-').slice(0, 72);
         document.title = `معين - ${reportTitle}`;
         document.body.classList.add('maeen-is-printing');
-        const restore = () => {
+        restore = () => {
           document.title = originalTitle;
           document.body.classList.remove('maeen-is-printing');
           window.removeEventListener('afterprint', restore);
@@ -9843,7 +9856,8 @@ window.maeenInitApp = async function(){
         window.addEventListener('afterprint', restore);
         notify('اختر «حفظ بتنسيق PDF» من نافذة الطباعة لإنشاء ملف قابل للمشاركة.', 'success');
         if (typeof window.fitReportPagesToOnePage === 'function') window.fitReportPagesToOnePage();
-        window.print();
+        });
+        window.print();                       // تُنفَّذ دائماً، نجحت التهيئة أو فشلت
         window.setTimeout(restore, 1600);
       };
     }
@@ -10125,10 +10139,10 @@ window.maeenInitApp = async function(){
 
   const originalDashboard = window.renderDashboard;
   if (typeof originalDashboard === 'function') {
-    window.renderDashboard = function renderDashboardWithFollowUp() { originalDashboard(); injectFollowUpPanel(); };
+    window.renderDashboard = function renderDashboardWithFollowUp() { originalDashboard(); maeenSafe('لوحة أولويات التوثيق', injectFollowUpPanel); };
   }
-  injectFinder();
-  injectFollowUpPanel();
+  maeenSafe('البحث السريع', injectFinder);
+  maeenSafe('لوحة أولويات التوثيق', injectFollowUpPanel);
 })();
 </script>
 <style>
@@ -10229,19 +10243,19 @@ window.maeenInitApp = async function(){
   if (typeof baseRender === 'function') {
     window.render = function renderWithCriterionSignals() {
       baseRender();
-      decorateCriterionCards();
-      drawJourneyCallout();
+      maeenSafe('إشارات المعايير', decorateCriterionCards);
+      maeenSafe('لافتة الإجراء التالي', drawJourneyCallout);
     };
   }
   const baseDashboard = window.renderDashboard;
   if (typeof baseDashboard === 'function') {
     window.renderDashboard = function renderDashboardWithJourney() {
       baseDashboard();
-      drawJourneyCallout();
+      maeenSafe('لافتة الإجراء التالي', drawJourneyCallout);
     };
   }
-  decorateCriterionCards();
-  drawJourneyCallout();
+  maeenSafe('إشارات المعايير', decorateCriterionCards);
+  maeenSafe('لافتة الإجراء التالي', drawJourneyCallout);
 })();
 </script>
 <style>
@@ -10327,7 +10341,12 @@ window.maeenInitApp = async function(){
       } catch (_) { /* يحتفظ التطبيق برسالة الخطأ الأصلية عند عدم العثور على التقرير */ }
       const build = typeof BUILD_FN_MAP === 'undefined' ? null : BUILD_FN_MAP[rptKey];
       if (!snapshot || !build) return originalPreviewLinked(rptKey, entryId);
-      linkedReportPreviewHtml = build(snapshot);
+      try {
+        linkedReportPreviewHtml = build(snapshot);
+      } catch (error) {
+        console.error('maeen: تعذّر بناء لقطة التقرير', error);
+        return originalPreviewLinked(rptKey, entryId);
+      }
       document.getElementById('linkedReportPreviewBody').innerHTML = linkedReportPreviewHtml;
       document.getElementById('linkedReportPreviewOverlay').classList.add('show');
     };
@@ -10345,12 +10364,12 @@ window.maeenInitApp = async function(){
   if (typeof originalSwitch === 'function') {
     window.switchView = function switchViewWithPersistenceScope() {
       const result = originalSwitch.apply(this, arguments);
-      window.setTimeout(updatePersistenceToolsVisibility, 0);
+      window.setTimeout(() => maeenSafe('أدوات الحفظ', updatePersistenceToolsVisibility), 0);
       return result;
     };
   }
-  new MutationObserver(updatePersistenceToolsVisibility).observe(document.body, { subtree: true, attributes: true, attributeFilter: ['class'] });
-  updatePersistenceToolsVisibility();
+  new MutationObserver(() => maeenSafe('أدوات الحفظ', updatePersistenceToolsVisibility)).observe(document.body, { subtree: true, attributes: true, attributeFilter: ['class'] });
+  maeenSafe('أدوات الحفظ', updatePersistenceToolsVisibility);
 })();
 </script>
 <style>
@@ -10463,7 +10482,7 @@ body.maeen-show-persistence-tools #maeen-data-tools { display: flex !important; 
   if (typeof previousDeleteEntry === 'function') {
     window.deleteEntry = function deleteEntryWithHub() {
       const result = previousDeleteEntry.apply(this, arguments);
-      window.setTimeout(renderReportHub, 0);
+      window.setTimeout(() => maeenSafe('سجل التقارير', renderReportHub), 0);
       return result;
     };
   }
@@ -10471,11 +10490,11 @@ body.maeen-show-persistence-tools #maeen-data-tools { display: flex !important; 
   if (typeof previousRender === 'function') {
     window.render = function renderWithReportHub() {
       const result = previousRender.apply(this, arguments);
-      renderReportHub();
+      maeenSafe('سجل التقارير', renderReportHub);
       return result;
     };
   }
-  renderReportHub();
+  maeenSafe('سجل التقارير', renderReportHub);
 })();
 </script>
 <style>
@@ -10672,16 +10691,16 @@ body.maeen-show-persistence-tools #maeen-data-tools { display: flex !important; 
     });
   };
   const previousRefresh = window.maeenRefreshReportHub;
-  window.maeenRefreshReportHub = function refreshReportHubWithControls() { previousRefresh?.(); install(); refreshReportHubControls(); };
+  window.maeenRefreshReportHub = function refreshReportHubWithControls() { previousRefresh?.(); maeenSafe('ضوابط سجل التقارير', () => { install(); refreshReportHubControls(); }); };
   const previousRender = window.render;
   if (typeof previousRender === 'function') {
     window.render = function renderWithPersistentReportControls() {
       const result = previousRender.apply(this, arguments);
-      window.maeenRefreshReportHub();
+      maeenSafe('أدوات سجل التقارير', () => window.maeenRefreshReportHub());
       return result;
     };
   }
-  window.maeenRefreshReportHub();
+  maeenSafe('أدوات سجل التقارير', () => window.maeenRefreshReportHub());
 })();
 </script>
 <style>
@@ -10772,10 +10791,10 @@ body.maeen-show-persistence-tools #maeen-data-tools { display: flex !important; 
     await persist(); registerState.noteId=null; panel.hidden=true; render(); window.maeenRefreshReportHub?.();
   };
   const previousRegisterRefresh = window.maeenRefreshReportHub;
-  window.maeenRefreshReportHub = function registerRefreshWithEnhancements() { previousRegisterRefresh?.(); renderRegisterEnhancements(); };
+  window.maeenRefreshReportHub = function registerRefreshWithEnhancements() { previousRegisterRefresh?.(); maeenSafe('تحسينات السجل', renderRegisterEnhancements); };
   const previousRegisterRender = window.render;
   if (typeof previousRegisterRender === 'function') {
-    window.render = function renderWithRegisterEnhancements() { const result=previousRegisterRender.apply(this,arguments); window.maeenRefreshReportHub(); return result; };
+    window.render = function renderWithRegisterEnhancements() { const result=previousRegisterRender.apply(this,arguments); maeenSafe('تحسينات السجل', () => window.maeenRefreshReportHub()); return result; };
   }
   const hub=document.getElementById('maeen-report-hub');
   hub?.addEventListener('change', event => {
@@ -10790,7 +10809,7 @@ body.maeen-show-persistence-tools #maeen-data-tools { display: flex !important; 
     if (action.matches('[data-maeen-note-save]')) { saveNote(); return; }
     if (action.matches('[data-maeen-note-cancel]')) { const panel=hub.querySelector('.maeen-note-panel'); if(panel) panel.hidden=true; registerState.noteId=null; }
   });
-  window.maeenRefreshReportHub();
+  maeenSafe('أدوات سجل التقارير', () => window.maeenRefreshReportHub());
 })();
 </script>
 <style>
@@ -10856,11 +10875,11 @@ body.maeen-show-persistence-tools #maeen-data-tools { display: flex !important; 
   if (typeof previousLayoutRender === 'function') {
     window.render = function renderWithHomeOverview() {
       const result = previousLayoutRender.apply(this, arguments);
-      collectSummary();
+      maeenSafe('ملخص الملف', collectSummary);
       return result;
     };
   }
-  collectSummary();
+  maeenSafe('ملخص الملف', collectSummary);
 })();
 </script>
 <style>
@@ -10953,8 +10972,8 @@ body.maeen-show-persistence-tools #maeen-data-tools { display: flex !important; 
     panel.querySelector('button')?.addEventListener('click', () => { switchView('sections'); try { openCats.add(next.item.id); render(); } catch (_) {} window.setTimeout(() => document.querySelector('#catList .cat-card:not(.cat-perf)')?.scrollIntoView({behavior:'smooth',block:'center'}), 90); });
   };
   const previousRender = window.render;
-  if (typeof previousRender === 'function') window.render = function renderWithSmartHomeAction() { const result = previousRender.apply(this, arguments); update(); return result; };
-  update();
+  if (typeof previousRender === 'function') window.render = function renderWithSmartHomeAction() { const result = previousRender.apply(this, arguments); maeenSafe('حلقة التقدّم وبطاقة التالي', update); return result; };
+  maeenSafe('حلقة التقدّم وبطاقة التالي', update);
 })();
 </script>
 <script>
@@ -11574,13 +11593,14 @@ body, .app{transition:background-color .18s ease, color .18s ease;}
   if (typeof previousRender === 'function') {
     window.render = function renderThenArrange(){
       const result = previousRender.apply(this, arguments);
-      arrange();                                // سجل التقارير يُنشأ متأخراً
+      maeenSafe('ترتيب اللوحات', arrange);      // سجل التقارير يُنشأ متأخراً
       return result;
     };
   }
-  arrange();
-  document.addEventListener('DOMContentLoaded', arrange);
-  window.setTimeout(arrange, 600);
+  const safeArrange = () => maeenSafe('ترتيب اللوحات', arrange);
+  safeArrange();
+  document.addEventListener('DOMContentLoaded', safeArrange);
+  window.setTimeout(safeArrange, 600);
 })();
 </script>
 </body>
