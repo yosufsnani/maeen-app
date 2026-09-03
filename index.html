@@ -1260,7 +1260,7 @@ window.maeenAlert = function(message, tone){
 
   <div class="view" id="viewTemplates">
     <div class="dash-wrap">
-      <div class="maeen-view-heading"><div><span>مساحة العمل</span><h2>القوالب والشهادات</h2><p>أنشئ تقريراً جاهزاً أو شهادة شكر ثم عاينها واطبعها أو احفظها PDF.</p></div><button type="button" onclick="switchView('home')">الرئيسية</button></div>
+      <div class="maeen-view-heading"><div><span>مساحة العمل</span><h2>القوالب والشهادات</h2><p>أنشئ تقريراً جاهزاً أو شهادة شكر ثم عاينها واطبعها أو احفظها PDF.</p></div></div>
       <section class="maeen-cert-launcher" aria-labelledby="maeenCertLauncherTitle">
         <div>
           <span>شهادات شكر وتقدير</span>
@@ -1288,7 +1288,7 @@ window.maeenAlert = function(message, tone){
   </div>
 
   <div class="view" id="viewSections">
-    <div class="maeen-view-heading"><div><span>مساحة العمل</span><h2>ملف الإنجاز</h2><p>المعايير والشواهد والتقارير المرتبطة في مكان واحد.</p></div><button type="button" onclick="switchView('home')">الرئيسية</button></div>
+    <div class="maeen-view-heading"><div><span>مساحة العمل</span><h2>ملف الإنجاز</h2><p>المعايير والشواهد والتقارير المرتبطة في مكان واحد.</p></div></div>
     <div class="maeen-chips" role="group" aria-label="تصفية المعايير">
       <button type="button" class="maeen-chip is-on" data-filter="all" onclick="setCatFilter('all')">الكل</button>
       <button type="button" class="maeen-chip" data-filter="todo" onclick="setCatFilter('todo')">يحتاج متابعة</button>
@@ -1300,7 +1300,7 @@ window.maeenAlert = function(message, tone){
 
   <div class="view" id="viewDashboard">
     <div class="dash-wrap">
-      <div class="maeen-view-heading"><div><span>مساحة العمل</span><h2>لوحة التقدم</h2><p>تابع حالة التوثيق وما يحتاج إلى إجراء تالٍ.</p></div><button type="button" onclick="switchView('home')">الرئيسية</button></div>
+      <div class="maeen-view-heading"><div><span>مساحة العمل</span><h2>لوحة التقدم</h2><p>تابع حالة التوثيق وما يحتاج إلى إجراء تالٍ.</p></div></div>
       <div class="dash-card">
         <div class="gauge" id="gauge" style="--pct:0"><span id="gaugeText">0%</span></div>
         <div style="font-size:12.5px; color:var(--dim);">نسبة التوثيق الإجمالية (موزونة حسب وزن كل معيار)</div>
@@ -1327,7 +1327,7 @@ window.maeenAlert = function(message, tone){
   </div>
 
   <div class="view" id="viewReports">
-    <div class="maeen-view-heading"><div><span>التحكم والبيانات</span><h2>الإعدادات</h2><p>إدارة بيانات التقارير وحماية نسخة ملف الإنجاز على هذا الجهاز.</p></div><button type="button" onclick="switchView('home')">الرئيسية</button></div>
+    <div class="maeen-view-heading"><div><span>التحكم والبيانات</span><h2>الإعدادات</h2><p>إدارة بيانات التقارير وحماية نسخة ملف الإنجاز على هذا الجهاز.</p></div></div>
     <div class="rep-datacard maeen-theme-card">
       <div class="rep-datacard-title">مظهر التطبيق</div>
       <div class="rep-datacard-sub">الشهادات والتقارير تبقى بخلفية فاتحة دائماً عند المعاينة والطباعة.</div>
@@ -9967,7 +9967,8 @@ window.maeenInitApp = async function(){
     document.addEventListener('click', () => window.setTimeout(refreshTrustStrip, 120));
     document.addEventListener('change', () => window.setTimeout(refreshTrustStrip, 180));
   }
-  placeTrustStrip();
+  // شريط الحالة أُزيل من «ملف الإنجاز»: حلقات المعايير تغني عنه،
+  // وزر النسخة الاحتياطية موجود في الإعدادات.
   window.maeenRefreshTrustStatus = refreshTrustStrip;
 })();
 </script>
@@ -10077,7 +10078,7 @@ window.maeenInitApp = async function(){
 
   function injectFinder() {
     const sections = document.getElementById('viewSections');
-    const anchor = document.getElementById('maeen-trust-strip');
+    const anchor = sections?.querySelector('.maeen-view-heading');
     if (!sections || !anchor || document.getElementById('maeen-quick-finder')) return;
     const finder = document.createElement('section');
     finder.id = 'maeen-quick-finder';
@@ -10802,7 +10803,7 @@ body.maeen-show-persistence-tools #maeen-data-tools { display: flex !important; 
   reportToggle.type = 'button';
   reportToggle.className = 'maeen-report-toggle';
   reportToggle.setAttribute('aria-expanded', 'false');
-  reportToggle.innerHTML = '<span><b>التقارير المرسلة</b><small>راجع التقارير المرتبطة بملف الإنجاز عند الحاجة</small></span><strong>عرض السجل ←</strong>';
+  reportToggle.innerHTML = '<span><b>التقارير المرسلة</b><small>التقارير التي أنشأتها من القوالب وأرسلتها إلى معايير ملفك — عاينها أو اطبعها أو انقلها بين المعايير</small></span><strong>عرض السجل ←</strong>';
   catList.before(reportToggle);
   if (reportHub) reportHub.hidden = true;
 
@@ -10822,13 +10823,21 @@ body.maeen-show-persistence-tools #maeen-data-tools { display: flex !important; 
     overview.querySelector('[data-maeen-summary="pending"]').textContent = pending;
   };
   const setReportVisibility = open => {
-    if (!reportHub) return;
-    reportHub.hidden = !open;
+    const hub = document.getElementById('maeen-report-hub');   // يُنشأ لاحقاً، فيُبحث عنه عند كل نقرة
+    if (!hub) return;
+    hub.hidden = !open;
     reportToggle.setAttribute('aria-expanded', String(open));
     reportToggle.classList.toggle('is-open', open);
     reportToggle.querySelector('strong').textContent = open ? 'إخفاء السجل ↑' : 'عرض السجل ←';
+    if (open) hub.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   };
-  reportToggle.addEventListener('click', () => { switchView('sections'); window.setTimeout(() => setReportVisibility(true), 0); });
+  reportToggle.addEventListener('click', () => {
+    switchView('sections');
+    window.setTimeout(() => {
+      const hub = document.getElementById('maeen-report-hub');
+      setReportVisibility(hub ? hub.hidden : true);          // فتح وإغلاق، لا فتح فقط
+    }, 0);
+  });
   const previousLayoutRender = window.render;
   if (typeof previousLayoutRender === 'function') {
     window.render = function renderWithHomeOverview() {
@@ -11122,41 +11131,7 @@ body, .app{transition:background-color .18s ease, color .18s ease;}
 .maeen-home-action--primary{border-color:var(--m-line); background:var(--m-surface);}
 
 /* ---------- ٥. ملف الإنجاز ---------- */
-/* ترتيب المساحة: العنوان، ثم الحالة والبحث، ثم المرشّحات والقائمة، ثم اللوحات المساندة */
-#viewSections.view.active{display:flex; flex-direction:column;}
-#viewSections .maeen-view-heading{order:0;}
-#viewSections #maeen-trust-strip{order:1;}
-#viewSections #maeen-quick-finder{order:2;}
-#viewSections .maeen-chips{order:3;}
-#viewSections #catList{order:4;}
-#viewSections #catEmpty{order:5;}
-#viewSections .maeen-home-overview{order:6;}
-#viewSections .maeen-report-toggle{order:7;}
-#viewSections #maeen-report-hub, #viewSections .maeen-report-hub{order:8;}
-
-/* لوحة الحالة والنسخ الاحتياطي */
-#maeen-trust-strip{
-  margin:0 20px 10px !important; padding:16px 18px !important;
-  border:1px solid var(--m-line) !important; border-radius:14px !important;
-  background:var(--m-surface) !important; box-shadow:none !important;
-}
-#maeen-trust-strip::after{background:var(--m-accent) !important;}
-.maeen-trust-status{color:var(--m-ink);}
-.maeen-trust-status strong{color:var(--m-ink); font:500 13px/1.3 var(--m-ui);}
-.maeen-trust-status span:not(.maeen-status-dot){color:var(--m-muted); font:300 11.5px/1.4 var(--m-ui);}
-.maeen-status-dot{background:var(--m-accent); box-shadow:0 0 0 4px var(--m-accent-soft);}
-#maeen-trust-backup{
-  min-height:36px; border:1px solid var(--m-line); border-radius:10px;
-  background:var(--m-surface-2); color:var(--m-ink-2); font:400 11.5px/1 var(--m-ui);
-}
-#maeen-trust-backup:hover{background:var(--m-accent-soft); color:var(--m-accent);}
-.maeen-workflow{color:var(--m-muted);}
-.maeen-workflow-step{font:400 11px/1 var(--m-ui);}
-.maeen-workflow-step b{background:var(--m-surface-2); color:var(--m-accent);}
-.maeen-workflow i{color:var(--m-dim);}
-.maeen-progress-line{background:var(--m-track);}
-.maeen-progress-line span{background:var(--m-accent);}
-#maeen-trust-caption{color:var(--m-muted); font:300 11px/1.5 var(--m-ui);}
+/* الترتيب يُضبط في DOM (سكربت أسفل الملف) لا بـ order، حتى لا يعتمد على flex */
 #maeen-next-action{
   border:1px solid var(--m-line); border-radius:11px; background:var(--m-surface-2);
 }
@@ -11181,6 +11156,7 @@ body, .app{transition:background-color .18s ease, color .18s ease;}
 .maeen-search-box input::placeholder{color:var(--m-dim); font-weight:300;}
 .maeen-search-box kbd{border:1px solid var(--m-line); background:var(--m-surface-2); color:var(--m-dim);}
 .maeen-search-results > p{color:var(--m-muted); font:300 11px/1.6 var(--m-ui);}
+.maeen-search-results > p:not(.maeen-search-empty){display:none;}   /* النص التمهيدي لا يضيف شيئاً تحت حقل فارغ */
 .maeen-search-result{border-bottom:1px solid var(--m-line-soft); color:var(--m-ink);}
 .maeen-search-result:hover strong{color:var(--m-accent);}
 .maeen-search-result > span{background:var(--m-accent-soft); color:var(--m-accent); font:500 9.5px/1 var(--m-ui);}
@@ -11204,6 +11180,7 @@ body, .app{transition:background-color .18s ease, color .18s ease;}
 .maeen-home-overview__metrics strong{color:var(--m-ink); font:600 17px/1 var(--m-ui);}
 .maeen-home-overview__metrics small{color:var(--m-muted); font:300 9.5px/1.3 var(--m-ui);}
 .maeen-report-toggle{
+  width:auto !important;               /* width:100% مع هامش جانبي كان يُخرج الصفحة أفقياً */
   margin:0 20px 10px !important; padding:13px 16px !important;
   border:1px solid var(--m-line) !important; border-radius:12px !important;
   background:var(--m-surface) !important; color:var(--m-ink) !important; box-shadow:none !important;
@@ -11370,6 +11347,7 @@ body, .app{transition:background-color .18s ease, color .18s ease;}
 
 /* بطاقة البيانات والحساب */
 .maeen-settings-data-card{
+  width:auto !important;
   margin:0 20px 12px !important; padding:16px 18px !important;
   border:1px solid var(--m-line) !important; border-radius:14px !important;
   background:var(--m-surface) !important; box-shadow:none !important; color:var(--m-ink) !important;
@@ -11434,12 +11412,7 @@ body, .app{transition:background-color .18s ease, color .18s ease;}
 .maeen-theme-swatch.is-auto{background:linear-gradient(100deg,#F2F6F5 0 50%,#0D1719 50% 100%);}
 .maeen-theme-swatch.is-auto::before{background:linear-gradient(100deg,#0E8C7A 0 50%,#35D6C0 50% 100%);}
 
-/* ترتيب مساحة الإعدادات */
-#viewReports.view.active{display:flex; flex-direction:column;}
-#viewReports .maeen-view-heading{order:0;}
-#viewReports .maeen-theme-card{order:1;}
-#viewReports .maeen-settings-data-card{order:2;}
-#viewReports .rep-datacard:not(.maeen-theme-card){order:3;}
+/* ترتيب مساحة الإعدادات يُضبط في DOM كذلك */
 .maeen-theme-opt[aria-pressed="true"] .maeen-theme-swatch{border-color:var(--m-accent);}
 
 /* ---------- ٩. شريط التنقل ---------- */
@@ -11555,6 +11528,45 @@ body, .app{transition:background-color .18s ease, color .18s ease;}
   }
 
   apply(readPref());
+})();
+</script>
+<script>
+/* ترتيب لوحات المساحتين: كثير منها يُحقن بالسكربت في مواضع لا تناسب التصميم،
+   فنعيد ترتيب عقد DOM نفسها بدل الاعتماد على flex/order. */
+(() => {
+  'use strict';
+  const ORDER = {
+    viewSections: ['.maeen-view-heading', '#maeen-quick-finder', '.maeen-chips',
+                   '#catList', '#catEmpty', '.maeen-home-overview',
+                   '.maeen-report-toggle', '#maeen-report-hub'],
+    viewReports:  ['.maeen-view-heading', '.maeen-theme-card', '.maeen-settings-data-card'],
+  };
+
+  function arrange(){
+    for (const [viewId, selectors] of Object.entries(ORDER)) {
+      const view = document.getElementById(viewId);
+      if (!view) continue;
+      let anchor = null;                       // آخر عنصر رُتّب، نُدرج بعده
+      for (const sel of selectors) {
+        const el = view.querySelector(':scope > ' + sel);
+        if (!el) continue;
+        if (anchor) anchor.after(el); else view.prepend(el);
+        anchor = el;
+      }
+    }
+  }
+
+  const previousRender = window.render;
+  if (typeof previousRender === 'function') {
+    window.render = function renderThenArrange(){
+      const result = previousRender.apply(this, arguments);
+      arrange();                                // سجل التقارير يُنشأ متأخراً
+      return result;
+    };
+  }
+  arrange();
+  document.addEventListener('DOMContentLoaded', arrange);
+  window.setTimeout(arrange, 600);
 })();
 </script>
 </body>
