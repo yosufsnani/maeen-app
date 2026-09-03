@@ -428,10 +428,14 @@
   .rpt3-header{background:linear-gradient(135deg,var(--brand-navy),#082C4A); padding:18px 22px; display:flex; align-items:flex-start; justify-content:space-between; gap:10px;}
   .rpt3-header-right{order:1; text-align:right; color:#fff; font-size:11.5px; line-height:1.75; font-weight:700; flex:1; min-width:0;}
   .rpt3-header-center{order:2; text-align:center; flex-shrink:0; padding-top:2px;}
-  .rpt3-header-center{display:flex; flex-direction:column; align-items:center; gap:7px;}
   .rpt3-header-center img{width:98px; height:auto; display:block; object-fit:contain; background:transparent; border-radius:0; padding:0;}
-  .rpt3-extra-logo{width:auto !important; max-width:98px; max-height:34px; object-fit:contain;}
-  .rpt2-extra-logo{display:block; margin:5px auto 0; width:auto; max-width:106px; max-height:34px; object-fit:contain;}
+  /* الشعار الإضافي يجلس في فراغ العمود الأيسر، بمحاذاة شعار الوزارة لا تحته */
+  .rpt3-header-left{display:flex; align-items:flex-start; justify-content:space-between; gap:14px;}
+  .rpt3-header-left__text{flex:none;}
+  .rpt3-extra-logo{flex:none; width:auto; max-width:120px; max-height:48px; object-fit:contain;}
+  .rpt2-header-left{display:flex; align-items:flex-start; justify-content:space-between; gap:14px;}
+  .rpt2-header-left__text{flex:none;}
+  .rpt2-extra-logo{flex:none; width:auto; max-width:120px; max-height:48px; object-fit:contain;}
   .rpt3-header-left{order:3; text-align:left; color:#fff; font-size:11.5px; line-height:1.75; font-weight:700; opacity:.92; flex:1; min-width:0;}
   .rpt3-body{padding:20px 20px 22px; flex:1; display:flex; flex-direction:column;}
   .rpt3-title-bar{background:linear-gradient(90deg,var(--brand-green),#0C9468); color:#fff; font-weight:900; font-size:14.5px; text-align:center; border-radius:12px; padding:12px 16px; margin-bottom:8px;}
@@ -4195,12 +4199,15 @@ function buildStrategyPageHtml(entry){
             <div>${escapeHtml(repData.school || 'اسم المدرسة')}</div>
           </div>
           <div class="rpt2-header-center">
-            <div class="rpt2-logo-badge"><img src="${MOE_LOGO}"></div>${extraLogoHtml('rpt2-extra-logo')}
+            <div class="rpt2-logo-badge"><img src="${MOE_LOGO}"></div>
             <div class="rpt2-logo-text">${escapeHtml(repData.school || 'شعار المدرسة')}</div>
           </div>
           <div class="rpt2-header-left">
-            ${repData.year ? `<div>العام الدراسي ${escapeHtml(repData.year)}</div>` : ''}
-            ${repData.semester ? `<div>${escapeHtml(repData.semester)}</div>` : ''}
+            ${extraLogoHtml('rpt2-extra-logo')}
+            <div class="rpt2-header-left__text">
+              ${repData.year ? `<div>العام الدراسي ${escapeHtml(repData.year)}</div>` : ''}
+              ${repData.semester ? `<div>${escapeHtml(repData.semester)}</div>` : ''}
+            </div>
           </div>
         </div>
         <div class="rpt2-title-wrap"><div class="rpt2-title-badge">${escapeHtml(entry.title)}</div></div>
@@ -5692,11 +5699,14 @@ function buildActPageHtml(entry){
             <div>${escapeHtml(repData.school || 'اسم المدرسة')}</div>
           </div>
           <div class="rpt3-header-center">
-            <img src="${MOE_LOGO}">${extraLogoHtml('rpt3-extra-logo')}
+            <img src="${MOE_LOGO}">
           </div>
           <div class="rpt3-header-left">
-            <div>العام الدراسي ${escapeHtml(repData.year || '1448')}هـ</div>
-            <div>${escapeHtml(repData.semester || 'الفصل الدراسي')}</div>
+            ${extraLogoHtml('rpt3-extra-logo')}
+            <div class="rpt3-header-left__text">
+              <div>العام الدراسي ${escapeHtml(repData.year || '1448')}هـ</div>
+              <div>${escapeHtml(repData.semester || 'الفصل الدراسي')}</div>
+            </div>
           </div>
         </div>
 
@@ -5896,12 +5906,15 @@ function buildRadioPageHtml(entry){
           <div class="rpt2-header-center">
             <div class="rpt2-logo-badge">
               <img src="${MOE_LOGO}">
-            </div>${extraLogoHtml('rpt2-extra-logo')}
+            </div>
             <div class="rpt2-logo-text">${escapeHtml(repData.school || 'شعار المدرسة')}</div>
           </div>
           <div class="rpt2-header-left">
-            ${repData.year ? `<div>العام الدراسي ${escapeHtml(repData.year)}</div>` : ''}
-            ${repData.semester ? `<div>${escapeHtml(repData.semester)}</div>` : ''}
+            ${extraLogoHtml('rpt2-extra-logo')}
+            <div class="rpt2-header-left__text">
+              ${repData.year ? `<div>العام الدراسي ${escapeHtml(repData.year)}</div>` : ''}
+              ${repData.semester ? `<div>${escapeHtml(repData.semester)}</div>` : ''}
+            </div>
           </div>
         </div>
         <div class="rpt2-title-wrap">
@@ -6127,12 +6140,15 @@ function buildExtraPageHtml(entry){
           <div class="rpt2-header-center">
             <div class="rpt2-logo-badge">
               <img src="${MOE_LOGO}">
-            </div>${extraLogoHtml('rpt2-extra-logo')}
+            </div>
             <div class="rpt2-logo-text">${escapeHtml(repData.school || 'شعار المدرسة')}</div>
           </div>
           <div class="rpt2-header-left">
-            ${repData.year ? `<div>العام الدراسي ${escapeHtml(repData.year)}</div>` : ''}
-            ${repData.semester ? `<div>${escapeHtml(repData.semester)}</div>` : ''}
+            ${extraLogoHtml('rpt2-extra-logo')}
+            <div class="rpt2-header-left__text">
+              ${repData.year ? `<div>العام الدراسي ${escapeHtml(repData.year)}</div>` : ''}
+              ${repData.semester ? `<div>${escapeHtml(repData.semester)}</div>` : ''}
+            </div>
           </div>
         </div>
         <div class="rpt2-title-wrap">
@@ -6360,12 +6376,15 @@ function buildWaitPageHtml(entry){
           <div class="rpt2-header-center">
             <div class="rpt2-logo-badge">
               <img src="${MOE_LOGO}">
-            </div>${extraLogoHtml('rpt2-extra-logo')}
+            </div>
             <div class="rpt2-logo-text">${escapeHtml(repData.school || 'شعار المدرسة')}</div>
           </div>
           <div class="rpt2-header-left">
-            ${repData.year ? `<div>العام الدراسي ${escapeHtml(repData.year)}</div>` : ''}
-            ${repData.semester ? `<div>${escapeHtml(repData.semester)}</div>` : ''}
+            ${extraLogoHtml('rpt2-extra-logo')}
+            <div class="rpt2-header-left__text">
+              ${repData.year ? `<div>العام الدراسي ${escapeHtml(repData.year)}</div>` : ''}
+              ${repData.semester ? `<div>${escapeHtml(repData.semester)}</div>` : ''}
+            </div>
           </div>
         </div>
         <div class="rpt2-title-wrap">
@@ -6598,12 +6617,15 @@ function buildApplPageHtml(entry){
           <div class="rpt2-header-center">
             <div class="rpt2-logo-badge">
               <img src="${MOE_LOGO}">
-            </div>${extraLogoHtml('rpt2-extra-logo')}
+            </div>
             <div class="rpt2-logo-text">${escapeHtml(repData.school || 'شعار المدرسة')}</div>
           </div>
           <div class="rpt2-header-left">
-            ${repData.year ? `<div>العام الدراسي ${escapeHtml(repData.year)}</div>` : ''}
-            ${repData.semester ? `<div>${escapeHtml(repData.semester)}</div>` : ''}
+            ${extraLogoHtml('rpt2-extra-logo')}
+            <div class="rpt2-header-left__text">
+              ${repData.year ? `<div>العام الدراسي ${escapeHtml(repData.year)}</div>` : ''}
+              ${repData.semester ? `<div>${escapeHtml(repData.semester)}</div>` : ''}
+            </div>
           </div>
         </div>
         <div class="rpt2-title-wrap">
@@ -6815,12 +6837,15 @@ function buildWsrunPageHtml(entry){
           <div class="rpt2-header-center">
             <div class="rpt2-logo-badge">
               <img src="${MOE_LOGO}">
-            </div>${extraLogoHtml('rpt2-extra-logo')}
+            </div>
             <div class="rpt2-logo-text">${escapeHtml(repData.school || 'شعار المدرسة')}</div>
           </div>
           <div class="rpt2-header-left">
-            ${repData.year ? `<div>العام الدراسي ${escapeHtml(repData.year)}</div>` : ''}
-            ${repData.semester ? `<div>${escapeHtml(repData.semester)}</div>` : ''}
+            ${extraLogoHtml('rpt2-extra-logo')}
+            <div class="rpt2-header-left__text">
+              ${repData.year ? `<div>العام الدراسي ${escapeHtml(repData.year)}</div>` : ''}
+              ${repData.semester ? `<div>${escapeHtml(repData.semester)}</div>` : ''}
+            </div>
           </div>
         </div>
         <div class="rpt2-title-wrap">
@@ -7032,12 +7057,15 @@ function buildWsattPageHtml(entry){
           <div class="rpt2-header-center">
             <div class="rpt2-logo-badge">
               <img src="${MOE_LOGO}">
-            </div>${extraLogoHtml('rpt2-extra-logo')}
+            </div>
             <div class="rpt2-logo-text">${escapeHtml(repData.school || 'شعار المدرسة')}</div>
           </div>
           <div class="rpt2-header-left">
-            ${repData.year ? `<div>العام الدراسي ${escapeHtml(repData.year)}</div>` : ''}
-            ${repData.semester ? `<div>${escapeHtml(repData.semester)}</div>` : ''}
+            ${extraLogoHtml('rpt2-extra-logo')}
+            <div class="rpt2-header-left__text">
+              ${repData.year ? `<div>العام الدراسي ${escapeHtml(repData.year)}</div>` : ''}
+              ${repData.semester ? `<div>${escapeHtml(repData.semester)}</div>` : ''}
+            </div>
           </div>
         </div>
         <div class="rpt2-title-wrap">
@@ -7310,12 +7338,15 @@ function buildVisitPageHtml(entry){
           <div class="rpt2-header-center">
             <div class="rpt2-logo-badge">
               <img src="${MOE_LOGO}">
-            </div>${extraLogoHtml('rpt2-extra-logo')}
+            </div>
             <div class="rpt2-logo-text">${escapeHtml(repData.school || 'شعار المدرسة')}</div>
           </div>
           <div class="rpt2-header-left">
-            ${repData.year ? `<div>العام الدراسي ${escapeHtml(repData.year)}</div>` : ''}
-            ${repData.semester ? `<div>${escapeHtml(repData.semester)}</div>` : ''}
+            ${extraLogoHtml('rpt2-extra-logo')}
+            <div class="rpt2-header-left__text">
+              ${repData.year ? `<div>العام الدراسي ${escapeHtml(repData.year)}</div>` : ''}
+              ${repData.semester ? `<div>${escapeHtml(repData.semester)}</div>` : ''}
+            </div>
           </div>
         </div>
         <div class="rpt2-title-wrap">
@@ -7597,12 +7628,15 @@ function buildPlcPageHtml(entry){
           <div class="rpt2-header-center">
             <div class="rpt2-logo-badge">
               <img src="${MOE_LOGO}">
-            </div>${extraLogoHtml('rpt2-extra-logo')}
+            </div>
             <div class="rpt2-logo-text">${escapeHtml(repData.school || 'شعار المدرسة')}</div>
           </div>
           <div class="rpt2-header-left">
-            ${repData.year ? `<div>العام الدراسي ${escapeHtml(repData.year)}</div>` : ''}
-            ${repData.semester ? `<div>${escapeHtml(repData.semester)}</div>` : ''}
+            ${extraLogoHtml('rpt2-extra-logo')}
+            <div class="rpt2-header-left__text">
+              ${repData.year ? `<div>العام الدراسي ${escapeHtml(repData.year)}</div>` : ''}
+              ${repData.semester ? `<div>${escapeHtml(repData.semester)}</div>` : ''}
+            </div>
           </div>
         </div>
         <div class="rpt2-title-wrap">
@@ -7815,12 +7849,15 @@ function buildParentPageHtml(entry){
           <div class="rpt2-header-center">
             <div class="rpt2-logo-badge">
               <img src="${MOE_LOGO}">
-            </div>${extraLogoHtml('rpt2-extra-logo')}
+            </div>
             <div class="rpt2-logo-text">${escapeHtml(repData.school || 'شعار المدرسة')}</div>
           </div>
           <div class="rpt2-header-left">
-            ${repData.year ? `<div>العام الدراسي ${escapeHtml(repData.year)}</div>` : ''}
-            ${repData.semester ? `<div>${escapeHtml(repData.semester)}</div>` : ''}
+            ${extraLogoHtml('rpt2-extra-logo')}
+            <div class="rpt2-header-left__text">
+              ${repData.year ? `<div>العام الدراسي ${escapeHtml(repData.year)}</div>` : ''}
+              ${repData.semester ? `<div>${escapeHtml(repData.semester)}</div>` : ''}
+            </div>
           </div>
         </div>
         <div class="rpt2-title-wrap">
@@ -8335,12 +8372,15 @@ function buildStratPageHtml(entry){
           <div class="rpt2-header-center">
             <div class="rpt2-logo-badge">
               <img src="${MOE_LOGO}">
-            </div>${extraLogoHtml('rpt2-extra-logo')}
+            </div>
             <div class="rpt2-logo-text">${escapeHtml(repData.school || 'شعار المدرسة')}</div>
           </div>
           <div class="rpt2-header-left">
-            ${repData.year ? `<div>العام الدراسي ${escapeHtml(repData.year)}</div>` : ''}
-            ${repData.semester ? `<div>${escapeHtml(repData.semester)}</div>` : ''}
+            ${extraLogoHtml('rpt2-extra-logo')}
+            <div class="rpt2-header-left__text">
+              ${repData.year ? `<div>العام الدراسي ${escapeHtml(repData.year)}</div>` : ''}
+              ${repData.semester ? `<div>${escapeHtml(repData.semester)}</div>` : ''}
+            </div>
           </div>
         </div>
         <div class="rpt2-title-wrap">
@@ -8648,12 +8688,15 @@ function buildTechPageHtml(entry){
             <div>${escapeHtml(repData.school || 'اسم المدرسة')}</div>
           </div>
           <div class="rpt2-header-center">
-            <div class="rpt2-logo-badge"><img src="${MOE_LOGO}"></div>${extraLogoHtml('rpt2-extra-logo')}
+            <div class="rpt2-logo-badge"><img src="${MOE_LOGO}"></div>
             <div class="rpt2-logo-text">${escapeHtml(repData.school || 'شعار المدرسة')}</div>
           </div>
           <div class="rpt2-header-left">
-            ${repData.year ? `<div>العام الدراسي ${escapeHtml(repData.year)}</div>` : ''}
-            ${repData.semester ? `<div>${escapeHtml(repData.semester)}</div>` : ''}
+            ${extraLogoHtml('rpt2-extra-logo')}
+            <div class="rpt2-header-left__text">
+              ${repData.year ? `<div>العام الدراسي ${escapeHtml(repData.year)}</div>` : ''}
+              ${repData.semester ? `<div>${escapeHtml(repData.semester)}</div>` : ''}
+            </div>
           </div>
         </div>
         <div class="rpt2-title-wrap"><div class="rpt2-title-badge">${escapeHtml(entry.title)}</div></div>
@@ -8812,12 +8855,15 @@ function buildRemedialPageHtml(entry){
             <div>${escapeHtml(repData.school || 'اسم المدرسة')}</div>
           </div>
           <div class="rpt2-header-center">
-            <div class="rpt2-logo-badge"><img src="${MOE_LOGO}"></div>${extraLogoHtml('rpt2-extra-logo')}
+            <div class="rpt2-logo-badge"><img src="${MOE_LOGO}"></div>
             <div class="rpt2-logo-text">${escapeHtml(repData.school || 'شعار المدرسة')}</div>
           </div>
           <div class="rpt2-header-left">
-            ${repData.year ? `<div>العام الدراسي ${escapeHtml(repData.year)}</div>` : ''}
-            ${repData.semester ? `<div>${escapeHtml(repData.semester)}</div>` : ''}
+            ${extraLogoHtml('rpt2-extra-logo')}
+            <div class="rpt2-header-left__text">
+              ${repData.year ? `<div>العام الدراسي ${escapeHtml(repData.year)}</div>` : ''}
+              ${repData.semester ? `<div>${escapeHtml(repData.semester)}</div>` : ''}
+            </div>
           </div>
         </div>
         <div class="rpt2-title-wrap"><div class="rpt2-title-badge">${escapeHtml(entry.title)}</div></div>
@@ -8959,12 +9005,15 @@ function buildEnrichPageHtml(entry){
             <div>${escapeHtml(repData.school || 'اسم المدرسة')}</div>
           </div>
           <div class="rpt2-header-center">
-            <div class="rpt2-logo-badge"><img src="${MOE_LOGO}"></div>${extraLogoHtml('rpt2-extra-logo')}
+            <div class="rpt2-logo-badge"><img src="${MOE_LOGO}"></div>
             <div class="rpt2-logo-text">${escapeHtml(repData.school || 'شعار المدرسة')}</div>
           </div>
           <div class="rpt2-header-left">
-            ${repData.year ? `<div>العام الدراسي ${escapeHtml(repData.year)}</div>` : ''}
-            ${repData.semester ? `<div>${escapeHtml(repData.semester)}</div>` : ''}
+            ${extraLogoHtml('rpt2-extra-logo')}
+            <div class="rpt2-header-left__text">
+              ${repData.year ? `<div>العام الدراسي ${escapeHtml(repData.year)}</div>` : ''}
+              ${repData.semester ? `<div>${escapeHtml(repData.semester)}</div>` : ''}
+            </div>
           </div>
         </div>
         <div class="rpt2-title-wrap"><div class="rpt2-title-badge">${escapeHtml(entry.title)}</div></div>
@@ -9116,12 +9165,15 @@ function buildEnrichStuPageHtml(entry){
             <div>${escapeHtml(repData.school || 'اسم المدرسة')}</div>
           </div>
           <div class="rpt2-header-center">
-            <div class="rpt2-logo-badge"><img src="${MOE_LOGO}"></div>${extraLogoHtml('rpt2-extra-logo')}
+            <div class="rpt2-logo-badge"><img src="${MOE_LOGO}"></div>
             <div class="rpt2-logo-text">${escapeHtml(repData.school || 'شعار المدرسة')}</div>
           </div>
           <div class="rpt2-header-left">
-            ${repData.year ? `<div>العام الدراسي ${escapeHtml(repData.year)}</div>` : ''}
-            ${repData.semester ? `<div>${escapeHtml(repData.semester)}</div>` : ''}
+            ${extraLogoHtml('rpt2-extra-logo')}
+            <div class="rpt2-header-left__text">
+              ${repData.year ? `<div>العام الدراسي ${escapeHtml(repData.year)}</div>` : ''}
+              ${repData.semester ? `<div>${escapeHtml(repData.semester)}</div>` : ''}
+            </div>
           </div>
         </div>
         <div class="rpt2-title-wrap"><div class="rpt2-title-badge">${escapeHtml(entry.title)}</div></div>
@@ -9264,12 +9316,15 @@ function buildTestresPageHtml(entry){
             <div>${escapeHtml(repData.school || 'اسم المدرسة')}</div>
           </div>
           <div class="rpt2-header-center">
-            <div class="rpt2-logo-badge"><img src="${MOE_LOGO}"></div>${extraLogoHtml('rpt2-extra-logo')}
+            <div class="rpt2-logo-badge"><img src="${MOE_LOGO}"></div>
             <div class="rpt2-logo-text">${escapeHtml(repData.school || 'شعار المدرسة')}</div>
           </div>
           <div class="rpt2-header-left">
-            ${repData.year ? `<div>العام الدراسي ${escapeHtml(repData.year)}</div>` : ''}
-            ${repData.semester ? `<div>${escapeHtml(repData.semester)}</div>` : ''}
+            ${extraLogoHtml('rpt2-extra-logo')}
+            <div class="rpt2-header-left__text">
+              ${repData.year ? `<div>العام الدراسي ${escapeHtml(repData.year)}</div>` : ''}
+              ${repData.semester ? `<div>${escapeHtml(repData.semester)}</div>` : ''}
+            </div>
           </div>
         </div>
         <div class="rpt2-title-wrap"><div class="rpt2-title-badge">${escapeHtml(entry.title)}</div></div>
@@ -9467,12 +9522,15 @@ function buildTestAnalysisPageHtml(entry){
             <div>${escapeHtml(repData.school || 'اسم المدرسة')}</div>
           </div>
           <div class="rpt2-header-center">
-            <div class="rpt2-logo-badge"><img src="${MOE_LOGO}"></div>${extraLogoHtml('rpt2-extra-logo')}
+            <div class="rpt2-logo-badge"><img src="${MOE_LOGO}"></div>
             <div class="rpt2-logo-text">${escapeHtml(repData.school || 'شعار المدرسة')}</div>
           </div>
           <div class="rpt2-header-left">
-            ${repData.year ? `<div>العام الدراسي ${escapeHtml(repData.year)}</div>` : ''}
-            ${entry.examType ? `<div>${escapeHtml(entry.examType)}</div>` : ''}
+            ${extraLogoHtml('rpt2-extra-logo')}
+            <div class="rpt2-header-left__text">
+              ${repData.year ? `<div>العام الدراسي ${escapeHtml(repData.year)}</div>` : ''}
+              ${entry.examType ? `<div>${escapeHtml(entry.examType)}</div>` : ''}
+            </div>
           </div>
         </div>
         <div class="rpt2-title-wrap"><div class="rpt2-title-badge">${escapeHtml(title)}</div></div>
@@ -9628,12 +9686,15 @@ function buildHonorPageHtml(entry){
             <div>${escapeHtml(repData.school || 'اسم المدرسة')}</div>
           </div>
           <div class="rpt2-header-center">
-            <div class="rpt2-logo-badge"><img src="${MOE_LOGO}"></div>${extraLogoHtml('rpt2-extra-logo')}
+            <div class="rpt2-logo-badge"><img src="${MOE_LOGO}"></div>
             <div class="rpt2-logo-text">${escapeHtml(repData.school || 'شعار المدرسة')}</div>
           </div>
           <div class="rpt2-header-left">
-            ${repData.year ? `<div>العام الدراسي ${escapeHtml(repData.year)}</div>` : ''}
-            ${repData.semester ? `<div>${escapeHtml(repData.semester)}</div>` : ''}
+            ${extraLogoHtml('rpt2-extra-logo')}
+            <div class="rpt2-header-left__text">
+              ${repData.year ? `<div>العام الدراسي ${escapeHtml(repData.year)}</div>` : ''}
+              ${repData.semester ? `<div>${escapeHtml(repData.semester)}</div>` : ''}
+            </div>
           </div>
         </div>
         <div class="rpt2-title-wrap"><div class="rpt2-title-badge">${escapeHtml(entry.title)}</div></div>
@@ -10071,12 +10132,15 @@ function buildCurrplanPageHtml(entry){
             <div>${escapeHtml(repData.school || 'اسم المدرسة')}</div>
           </div>
           <div class="rpt2-header-center">
-            <div class="rpt2-logo-badge"><img src="${MOE_LOGO}"></div>${extraLogoHtml('rpt2-extra-logo')}
+            <div class="rpt2-logo-badge"><img src="${MOE_LOGO}"></div>
             <div class="rpt2-logo-text">${escapeHtml(repData.school || 'شعار المدرسة')}</div>
           </div>
           <div class="rpt2-header-left">
-            ${repData.year ? `<div>العام الدراسي ${escapeHtml(repData.year)}</div>` : ''}
-            ${repData.semester ? `<div>${escapeHtml(repData.semester)}</div>` : ''}
+            ${extraLogoHtml('rpt2-extra-logo')}
+            <div class="rpt2-header-left__text">
+              ${repData.year ? `<div>العام الدراسي ${escapeHtml(repData.year)}</div>` : ''}
+              ${repData.semester ? `<div>${escapeHtml(repData.semester)}</div>` : ''}
+            </div>
           </div>
         </div>
         <div class="rpt2-title-wrap"><div class="rpt2-title-badge">${escapeHtml(entry.title)}</div></div>
