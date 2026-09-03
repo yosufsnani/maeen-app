@@ -718,6 +718,7 @@
   window.MAEEN_PDF_FUNCTION_URL = 'https://mo3en-app.onrender.com/generate-cert-pdf';
 </script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script>
 (() => {
   'use strict';
@@ -3071,6 +3072,7 @@ window.maeenAlert = function(message, tone){
 <div class="modal-overlay" id="learningStylesModalOverlay">
   <div class="modal-sheet" onclick="event.stopPropagation()" style="max-height:88vh; overflow-y:auto;">
     <div class="modal-title">تقرير تصنيف الطلاب وفق أنماط التعلم</div>
+    <div id="learningStylesEntryList" class="entry-list-plain" style="margin-bottom:14px;"></div>
 
     <div class="rep-section-title">الخطوة الأولى: تعبئة الاستبيان</div>
     <a href="https://forms.cloud.microsoft/Pages/ShareFormPage.aspx?id=bsmRCN1p8E2Ki3bGl2JAh4uu8l3BWCNFjtdNeVIptg9UMjFROVFOR1dLSlNVQlFISzM0VTlCOEJHTC4u&sharetoken=ec54HDNsXMg1QrlpfbjX" target="_blank" rel="noopener" style="display:flex; align-items:center; justify-content:space-between; background:var(--m-accent-soft); border-radius:14px; padding:12px 14px; margin-bottom:10px; text-decoration:none; color:var(--m-ink);">
@@ -3088,23 +3090,47 @@ window.maeenAlert = function(message, tone){
       بعد استلام إجابات الطلاب، صدّر إجابات الاستبيان كملف إكسل من Microsoft Forms.
     </div>
 
-    <div class="rep-section-title">الخطوة الثانية: توليد التقرير عبر ChatGPT</div>
-    <div style="font-size:12.5px; color:var(--sub); margin-bottom:8px; line-height:1.7;">
-      افتح برنامج ChatGPT، أرفق ملف الإكسل الذي صدّرته، ثم انسخ المطالبات التالية وألصقها كما هي:
+    <div class="rep-section-title">الخطوة الثانية: ارفع ملف الإكسل ليصنّف التطبيق الطلاب تلقائيًا</div>
+    <div style="font-size:12.5px; color:var(--sub); margin-bottom:10px; line-height:1.7;">
+      يحتسب معين نمط كل طالب بنفس منطق الأغلبية (الاختيار الأكثر تكرارًا في إجاباته) — دون الحاجة لأي أداة خارجية.
     </div>
-    <div style="position:relative; background:var(--m-surface-2); border:1px solid var(--m-line); border-radius:14px; padding:14px; margin-bottom:10px;">
-      <textarea id="learningStylesPrompt" readonly rows="14" style="width:100%; border:none; background:transparent; resize:vertical; font-size:12.5px; line-height:1.8; color:var(--ink); font-family:inherit;">مرفق ملف اكسيل لتحديد انماط تعلم الطلاب
-المطلوب منك التنفيذ فورًا وبدون مقترحات منك عمل ملف word و exel وفق التعليمات الآتية :
-1.تكتب عنوان التقرير ( تحديد أنماط تعلم الطلاب للعام الدراسي 1447هـ ) 
-2. ثم حدد النمط التعلمي للطلاب بطريقة  الأغلبية في الإجابات (الاختيار الأكثر تكرارًا لكل طالب) و افرز الأسماء حسب الصف والفصل مع تحديد نوع التعلم بجوار اسم كل طالب في جدول مع وضع رقم التسلسل
-4.في صفحات مستقلة افرر كل نمط لوحده مع تحديد أسماء الطلاب وفصولهم في جدول مع وضع رقم التسلسل
-5.في صفحة مستقلة قم بعمل إحصائية بالأعداد لكل نمط وفقا للصف والفصل في جدول
-6. أضف تحليل كتابي مختصر يشرح أبرز الملاحظات</textarea>
+    <input type="file" accept=".xlsx,.xls" onchange="handleLearningStylesFile(this)" id="learningStylesFile" style="margin-bottom:8px;">
+    <div id="rlsFileStatus" style="font-size:12px; color:var(--sub); margin-bottom:10px;"></div>
+    <div id="rlsColumnPicker"></div>
+    <div id="rlsResultsTable"></div>
+
+    <div class="rep-section-title">بيانات التقرير</div>
+    <div class="rep-field-label">عنوان التقرير</div>
+    <input type="text" id="rls-title" class="rep-field-input" placeholder="تحديد أنماط تعلم الطلاب">
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+      <div>
+        <div class="rep-field-label">الصف / الفصل</div>
+        <input type="text" id="rls-grade" class="rep-field-input" placeholder="مثال: خامس ابتدائي">
+      </div>
+      <div>
+        <div class="rep-field-label">الفصل الدراسي</div>
+        <input type="text" id="rls-semester" class="rep-field-input" placeholder="مثال: الأول">
+      </div>
     </div>
-    <button class="btn-save" style="width:100%; margin-bottom:16px;" onclick="copyLearningStylesPrompt()" id="copyLearningStylesBtn">نسخ المطالبات</button>
+    <div class="rep-field-label">العام الدراسي</div>
+    <input type="text" id="rls-year" class="rep-field-input" placeholder="مثال: ١٤٤٧هـ">
+    <div class="rep-field-label">ملاحظات إضافية (اختياري)</div>
+    <textarea id="rls-notes" rows="3" placeholder="أي ملاحظات تضيفها للتحليل الكتابي..."></textarea>
 
     <div class="modal-actions">
-      <button class="btn-cancel" style="width:100%;" onclick="closeLearningStylesModal()">إغلاق</button>
+      <button class="btn-cancel" onclick="closeLearningStylesModal()">إغلاق</button>
+      <button class="btn-save" onclick="addLearningStylesEntry()">حفظ وتوليد التقرير</button>
+    </div>
+  </div>
+</div>
+<!-- معاينة قالب تصنيف الطلاب وفق أنماط التعلم -->
+<div class="modal-overlay" id="learningStylesPreviewOverlay">
+  <div class="modal-sheet" onclick="event.stopPropagation()" style="max-height:90vh; overflow-y:auto; padding:16px;">
+    <div id="learningStylesPreviewBody"></div>
+    <button class="btn-send-portfolio" onclick="sendReportToPortfolio('learning-styles-report', learningStylesPreviewEntryId, this)" id="sendBtn_learningStylesPreviewBody">📑 إرسال إلى ملف الإنجاز</button>
+    <div class="modal-actions" style="margin-top:10px;">
+      <button class="btn-cancel" onclick="closeLearningStylesPreview()">رجوع</button>
+      <button class="btn-save" onclick="doPrintLearningStyles()">طباعة / حفظ PDF</button>
     </div>
   </div>
 </div>
@@ -3575,6 +3601,7 @@ const PORTFOLIO_TARGET_MAP = {
   'student-honor': {catId:'results', subId:'honor'},
   'appreciation-certificate': {catId:'results', subId:'honor'},
   'curriculum-plan': {catId:'plan', subId:'curriculumplan'},
+  'learning-styles-report': {catId:'environment', subId:'learningstyles'},
   'workshop-run': {catId:'community', subId:'certs'},
   'workshop-attend': {catId:'community', subId:'certs'},
 };
@@ -3599,6 +3626,7 @@ const BUILD_FN_MAP = {
   'student-honor': buildHonorPageHtml,
   'appreciation-certificate': buildCertPageHtml,
   'curriculum-plan': buildCurrplanPageHtml,
+  'learning-styles-report': buildLearningStylesPageHtml,
   'workshop-run': buildWsrunPageHtml,
   'workshop-attend': buildWsattPageHtml,
 };
@@ -3899,22 +3927,312 @@ function openEvalTemplate(catId, title){
 // قوالب تقارير جاهزة تم تفعيلها فعلياً (بقية العناصر لا تزال "قريباً")
 const READY_REPORT_TEMPLATES = {'classroom-activity': openActModal, 'school-radio': openRadioModal, 'extra-activity': openExtraModal, 'waiting-period': openWaitModal, 'applied-lesson': openApplModal, 'workshop-run': openWsrunModal, 'workshop-attend': openWsattModal, 'visit-log': openVisitModal, 'plc-log': openPlcModal, 'parent-contact': openParentModal, 'strategy-report': openStratModal, 'tech-word': ()=>openTechModal('word'), 'tech-excel': ()=>openTechModal('excel'), 'tech-teams-madrasati': ()=>openTechModal('teamsMadrasati'), 'tech-chatgpt': ()=>openTechModal('chatgpt'), 'tech-youtube': ()=>openTechModal('youtube'), 'tech-powerpoint': ()=>openTechModal('powerpoint'), 'tech-projector': ()=>openTechModal('projector'), 'tech-forms': ()=>openTechModal('forms'), 'tech-teams': ()=>openTechModal('teams'), 'tech-ain': ()=>openTechModal('ain'), 'tech-madrasati': ()=>openTechModal('madrasati'), 'remedial-plan': openRemedialModal, 'enrichment-plan': openEnrichModal, 'enrichment-plan-individual': openEnrichStuModal, 'test-results': openTestresModal, 'test-analysis': openTestAnalysisModal, 'student-honor': openHonorModal, 'appreciation-certificate': openCertModal, 'curriculum-plan': openCurrplanModal, 'learning-styles-report': openLearningStylesModal};
 function openLearningStylesModal(){
+  document.getElementById('rls-title').value = '';
+  document.getElementById('rls-grade').value = '';
+  document.getElementById('rls-semester').value = repData.semester || '';
+  document.getElementById('rls-year').value = repData.year || '';
+  document.getElementById('rls-notes').value = '';
+  document.getElementById('learningStylesFile').value = '';
+  document.getElementById('rlsFileStatus').textContent = '';
+  document.getElementById('rlsColumnPicker').innerHTML = '';
+  document.getElementById('rlsResultsTable').innerHTML = '';
+  rlsParsed = null;
+  rlsResults = [];
+  rlsNameColIdx = -1;
+  rlsClassColIdx = -1;
+  renderLearningStylesList();
   document.getElementById('learningStylesModalOverlay').classList.add('show');
 }
 function closeLearningStylesModal(){
   document.getElementById('learningStylesModalOverlay').classList.remove('show');
+  if(document.getElementById('viewReports').classList.contains('active')) renderReports();
 }
-function copyLearningStylesPrompt(){
-  const ta = document.getElementById('learningStylesPrompt');
-  const btn = document.getElementById('copyLearningStylesBtn');
-  const done = ()=>{ const old = btn.textContent; btn.textContent = 'تم النسخ ✓'; setTimeout(()=>{ btn.textContent = old; }, 1800); };
-  if(navigator.clipboard && navigator.clipboard.writeText){
-    navigator.clipboard.writeText(ta.value).then(done).catch(()=>{ ta.select(); document.execCommand('copy'); done(); });
-  } else {
-    ta.select();
-    document.execCommand('copy');
-    done();
+function renderLearningStylesList(){
+  const entries = rptEntries('learning-styles-report');
+  const el = document.getElementById('learningStylesEntryList');
+  if(entries.length === 0){ el.innerHTML = `<div class="empty-note">لا توجد تقارير محفوظة بعد</div>`; return; }
+  el.innerHTML = entries.slice().reverse().map(e=>`
+    <div class="entry-plain">
+      <div>
+        <div class="et">${escapeHtml(e.title || 'تقرير تصنيف الطلاب وفق أنماط التعلم')}</div>
+        <div class="em">${e.students.length} طالب/ة</div>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:6px; align-items:flex-end;">
+        <button class="entry-del" style="color:var(--blue-cta);" onclick="previewLearningStyles(${e.id})">معاينة القالب</button>
+        <button class="entry-del" onclick="deleteLearningStylesEntry(${e.id})">حذف</button>
+      </div>
+    </div>
+  `).join('');
+}
+function deleteLearningStylesEntry(id){
+  const arr = rptEntries('learning-styles-report');
+  const idx = arr.findIndex(e=> e.id === id);
+  if(idx > -1) arr.splice(idx,1);
+  persistRpt();
+  renderLearningStylesList();
+}
+
+// ---- رفع ملف الإكسل واحتساب الأنماط ----
+let rlsParsed = null; // { headers:[...], rows:[[...], ...] }
+let rlsResults = [];  // [{name, cls, pattern, counts:{pattern:count}, options:[...], tie}]
+let rlsNameColIdx = -1;
+let rlsClassColIdx = -1;
+const RLS_META_HEADERS = ['id', 'start time', 'completion time', 'email'];
+
+async function handleLearningStylesFile(input){
+  const file = input.files[0];
+  if(!file) return;
+  const statusEl = document.getElementById('rlsFileStatus');
+  statusEl.textContent = 'جارٍ قراءة الملف...';
+  document.getElementById('rlsColumnPicker').innerHTML = '';
+  document.getElementById('rlsResultsTable').innerHTML = '';
+  try{
+    if(typeof XLSX === 'undefined') throw new Error('XLSX not loaded');
+    const buf = await file.arrayBuffer();
+    const wb = XLSX.read(buf, {type:'array'});
+    const sheet = wb.Sheets[wb.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(sheet, {header:1, defval:''});
+    if(!rows.length){ statusEl.textContent = 'الملف فارغ.'; rlsParsed = null; return; }
+    const headers = rows[0].map(h=> String(h ?? '').trim());
+    const dataRows = rows.slice(1).filter(r=> r.some(c=> String(c ?? '').trim() !== ''));
+    if(!dataRows.length){ statusEl.textContent = 'لا توجد بيانات في الملف بعد صف العناوين.'; rlsParsed = null; return; }
+    rlsParsed = { headers, rows: dataRows };
+    statusEl.textContent = `تم تحميل ${dataRows.length} صفًا. تحقق من الأعمدة التالية:`;
+    renderLearningStylesColumnPickers();
+  }catch(e){
+    console.error(e);
+    statusEl.textContent = 'تعذّرت قراءة الملف. تأكد أنه ملف إكسل صادر من Microsoft Forms (xlsx).';
+    rlsParsed = null;
   }
+}
+
+function renderLearningStylesColumnPickers(){
+  const el = document.getElementById('rlsColumnPicker');
+  if(!rlsParsed){ el.innerHTML = ''; return; }
+  const guessName = rlsParsed.headers.findIndex(h=> /اسم/.test(h));
+  const guessClass = rlsParsed.headers.findIndex(h=> /صف|فصل/.test(h));
+  const opt = (h,i)=> `<option value="${i}">${escapeHtml(h || ('عمود ' + (i+1)))}</option>`;
+  el.innerHTML = `
+    <div class="rep-field-label">عمود اسم الطالب *</div>
+    <select id="rls-name-col" class="rep-field-input" onchange="computeLearningStylesResults()">
+      ${rlsParsed.headers.map((h,i)=> opt(h,i)).join('')}
+    </select>
+    <div class="rep-field-label">عمود الصف/الفصل (اختياري)</div>
+    <select id="rls-class-col" class="rep-field-input" onchange="computeLearningStylesResults()">
+      <option value="">بدون</option>
+      ${rlsParsed.headers.map((h,i)=> opt(h,i)).join('')}
+    </select>
+  `;
+  if(guessName >= 0) document.getElementById('rls-name-col').value = String(guessName);
+  if(guessClass >= 0) document.getElementById('rls-class-col').value = String(guessClass);
+  computeLearningStylesResults();
+}
+
+function computeLearningStylesResults(){
+  if(!rlsParsed) return;
+  const nameSel = document.getElementById('rls-name-col');
+  const classSel = document.getElementById('rls-class-col');
+  rlsNameColIdx = nameSel ? parseInt(nameSel.value, 10) : -1;
+  rlsClassColIdx = (classSel && classSel.value !== '') ? parseInt(classSel.value, 10) : -1;
+  if(!(rlsNameColIdx >= 0)){ rlsResults = []; renderLearningStylesResultsTable(); return; }
+  const answerColIdxs = rlsParsed.headers.map((h,i)=> i).filter(i=>
+    i !== rlsNameColIdx && i !== rlsClassColIdx &&
+    !RLS_META_HEADERS.includes(String(rlsParsed.headers[i] || '').trim().toLowerCase())
+  );
+  rlsResults = rlsParsed.rows.map(row=>{
+    const name = String(row[rlsNameColIdx] ?? '').trim();
+    const cls = rlsClassColIdx >= 0 ? String(row[rlsClassColIdx] ?? '').trim() : '';
+    const counts = {};
+    answerColIdxs.forEach(i=>{
+      const v = String(row[i] ?? '').trim();
+      if(!v) return;
+      counts[v] = (counts[v] || 0) + 1;
+    });
+    const options = Object.entries(counts).sort((a,b)=> b[1] - a[1]);
+    const top = options[0];
+    const tie = options.length > 1 && top && options[1][1] === top[1];
+    return { name, cls, pattern: top ? top[0] : '', counts, options: options.map(o=> o[0]), tie };
+  }).filter(r=> r.name);
+  renderLearningStylesResultsTable();
+}
+
+function renderLearningStylesResultsTable(){
+  const el = document.getElementById('rlsResultsTable');
+  if(!rlsParsed) { el.innerHTML = ''; return; }
+  if(!rlsResults.length){ el.innerHTML = `<div class="empty-note">لا توجد صفوف صالحة — تحقق من اختيار عمود الاسم الصحيح.</div>`; return; }
+  const tieCount = rlsResults.filter(r=> r.tie).length;
+  el.innerHTML = `
+    <div style="font-size:12px; color:var(--sub); margin:8px 0 6px;">
+      راجع النمط المحتسب لكل طالب/ة، وعدّله يدويًا عند الحاجة${tieCount ? ` — يوجد ${tieCount} صف بتعادل بين نمطين مُعلَّم باللون الأصفر` : ''}:
+    </div>
+    <div style="max-height:280px; overflow-y:auto; border:1px solid var(--m-line); border-radius:12px;">
+      <table style="width:100%; border-collapse:collapse; font-size:12px;">
+        <thead>
+          <tr style="position:sticky; top:0; background:var(--m-surface-2);">
+            <th style="padding:8px; text-align:right;">الاسم</th>
+            ${rlsClassColIdx >= 0 ? '<th style="padding:8px; text-align:right;">الصف/الفصل</th>' : ''}
+            <th style="padding:8px; text-align:right;">النمط</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rlsResults.map((r,i)=>`
+            <tr style="border-top:1px solid var(--m-line); ${r.tie ? 'background:var(--m-amber-soft);' : ''}">
+              <td style="padding:6px 8px;">${escapeHtml(r.name)}</td>
+              ${rlsClassColIdx >= 0 ? `<td style="padding:6px 8px;">${escapeHtml(r.cls)}</td>` : ''}
+              <td style="padding:6px 8px;">
+                <select onchange="rlsResults[${i}].pattern = this.value" style="width:100%; padding:4px; border-radius:6px; border:1px solid var(--m-line);">
+                  ${r.options.map(o=> `<option value="${escapeHtml(o)}" ${o === r.pattern ? 'selected' : ''}>${escapeHtml(o)} (${r.counts[o]})</option>`).join('')}
+                </select>
+              </td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+function addLearningStylesEntry(){
+  if(!rlsResults.length){ window.maeenAlert('الرجاء رفع ملف الإكسل وتحديد عمود اسم الطالب أولاً'); return; }
+  const entry = {
+    id: Date.now(),
+    title: document.getElementById('rls-title').value.trim() || 'تقرير تصنيف الطلاب وفق أنماط التعلم',
+    grade: document.getElementById('rls-grade').value.trim(),
+    semester: document.getElementById('rls-semester').value.trim(),
+    year: document.getElementById('rls-year').value.trim(),
+    notes: document.getElementById('rls-notes').value.trim(),
+    hasClassCol: rlsClassColIdx >= 0,
+    students: rlsResults.map(r=> ({ name: r.name, cls: r.cls, pattern: r.pattern }))
+  };
+  rptEntries('learning-styles-report').push(entry);
+  persistRpt();
+  renderLearningStylesList();
+  previewLearningStyles(entry.id);
+}
+
+function lrnComputeStats(entry){
+  const counts = {};
+  entry.students.forEach(s=>{ if(s.pattern) counts[s.pattern] = (counts[s.pattern] || 0) + 1; });
+  const total = entry.students.length;
+  const rows = Object.entries(counts).sort((a,b)=> b[1] - a[1]).map(([pattern,count])=> ({
+    pattern, count, pct: total ? Math.round(count / total * 1000) / 10 : 0
+  }));
+  return { total, rows };
+}
+
+function buildLearningStylesPageHtml(entry){
+  const st = lrnComputeStats(entry);
+  const sortedStudents = entry.students.slice().sort((a,b)=> entry.hasClassCol ? String(a.cls || '').localeCompare(String(b.cls || ''), 'ar') : 0);
+  const rowsHtml = sortedStudents.map((s,i)=> `
+    <tr>
+      <td style="border:1px solid #E4E4EA; padding:8px; text-align:center; width:36px;">${toArDigits(i+1)}</td>
+      <td style="border:1px solid #E4E4EA; padding:8px;">${escapeHtml(s.name)}</td>
+      ${entry.hasClassCol ? `<td style="border:1px solid #E4E4EA; padding:8px;">${escapeHtml(s.cls || '—')}</td>` : ''}
+      <td style="border:1px solid #E4E4EA; padding:8px;">${escapeHtml(s.pattern || '—')}</td>
+    </tr>
+  `).join('');
+  const studentsTable = `
+    <table style="width:100%; border-collapse:collapse; font-size:13px;">
+      <thead>
+        <tr style="background:#F1F1F5;">
+          <th style="border:1px solid #E4E4EA; padding:8px;">#</th>
+          <th style="border:1px solid #E4E4EA; padding:8px;">اسم الطالب/ـة</th>
+          ${entry.hasClassCol ? '<th style="border:1px solid #E4E4EA; padding:8px;">الصف/الفصل</th>' : ''}
+          <th style="border:1px solid #E4E4EA; padding:8px;">النمط</th>
+        </tr>
+      </thead>
+      <tbody>${rowsHtml}</tbody>
+    </table>
+  `;
+  const statsTable = `
+    <table style="width:100%; border-collapse:collapse; font-size:13px;">
+      <thead>
+        <tr style="background:#F1F1F5;">
+          <th style="border:1px solid #E4E4EA; padding:8px;">النمط</th>
+          <th style="border:1px solid #E4E4EA; padding:8px;">العدد</th>
+          <th style="border:1px solid #E4E4EA; padding:8px;">النسبة</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${st.rows.map(r=> `
+          <tr>
+            <td style="border:1px solid #E4E4EA; padding:8px;">${escapeHtml(r.pattern)}</td>
+            <td style="border:1px solid #E4E4EA; padding:8px; text-align:center;">${toArDigits(r.count)}</td>
+            <td style="border:1px solid #E4E4EA; padding:8px; text-align:center;">٪${toArDigits(r.pct)}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  `;
+  const autoAnalysis = st.total
+    ? `بلغ عدد الطلاب المصنَّفين ${toArDigits(st.total)} طالبًا/طالبة.` +
+      (st.rows[0] ? ` جاء نمط «${st.rows[0].pattern}» في المقدمة بنسبة ٪${toArDigits(st.rows[0].pct)}` : '') +
+      (st.rows[1] ? `، يليه نمط «${st.rows[1].pattern}» بنسبة ٪${toArDigits(st.rows[1].pct)}.` : '.')
+    : 'لا توجد بيانات كافية لإجراء التحليل.';
+  return `
+    <div class="rpt2-page" style="${reportCardStyle()}">
+      <div class="rpt2-card">
+        <div class="rpt2-topbar"></div>
+        <div class="rpt2-header">
+          <div class="rpt2-header-right">
+            <div>المملكة العربية السعودية</div>
+            <div>وزارة التعليم</div>
+            <div>${escapeHtml(repData.admin || 'الإدارة العامة للتعليم')}</div>
+            <div>${escapeHtml(repData.school || 'اسم المدرسة')}</div>
+          </div>
+          <div class="rpt2-header-center">
+            <div class="rpt2-logo-badge"><img src="${MOE_LOGO}"></div>
+            <div class="rpt2-logo-text">${escapeHtml(repData.school || 'شعار المدرسة')}</div>
+          </div>
+          <div class="rpt2-header-left">
+            ${extraLogoHtml('rpt2-extra-logo')}
+            <div class="rpt2-header-left__text">
+              ${entry.year ? `<div>العام الدراسي ${escapeHtml(entry.year)}</div>` : ''}
+              ${entry.semester ? `<div>${escapeHtml(entry.semester)}</div>` : ''}
+            </div>
+          </div>
+        </div>
+        <div class="rpt2-title-wrap"><div class="rpt2-title-badge">${escapeHtml(entry.title)}</div></div>
+        <div class="rpt2-body">
+          ${entry.grade ? `<div class="rpt2-listbox"><div class="rpt2-flabel-row"><div class="rpt2-flabel">الصف / الفصل</div><div class="rpt2-flabel-line"></div></div><div class="rpt2-fbox">${escapeHtml(entry.grade)}</div></div>` : ''}
+          <div class="rpt2-listbox">
+            <div class="rpt2-flabel-row"><div class="rpt2-flabel">تصنيف الطلاب حسب النمط</div><div class="rpt2-flabel-line"></div></div>
+            ${studentsTable}
+          </div>
+          <div class="rpt2-listbox">
+            <div class="rpt2-flabel-row"><div class="rpt2-flabel">الإحصائية العامة</div><div class="rpt2-flabel-line"></div></div>
+            ${statsTable}
+          </div>
+          <div class="rpt2-listbox">
+            <div class="rpt2-flabel-row"><div class="rpt2-flabel">تحليل مختصر</div><div class="rpt2-flabel-line"></div></div>
+            <div class="rpt2-stepsbox" style="border:none; padding:0;">
+              <div>${escapeHtml(autoAnalysis)}</div>
+              ${entry.notes ? `<div style="margin-top:6px;">${escapeHtml(entry.notes)}</div>` : ''}
+            </div>
+          </div>
+          <div class="rpt2-signrow">
+            <div>${escapeHtml(genderLabels().teacher)} / ${escapeHtml(repData.teacher || 'اسم المعلم')}</div>
+            <div>${escapeHtml(genderLabels().principal)} / ${escapeHtml(repData.principal || 'اسم المدير')}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+let learningStylesPreviewEntryId = null;
+function previewLearningStyles(id){
+  const entry = rptEntries('learning-styles-report').find(e=> e.id === id);
+  if(!entry) return;
+  learningStylesPreviewEntryId = id;
+  document.getElementById('learningStylesPreviewBody').innerHTML = buildLearningStylesPageHtml(entry);
+  document.getElementById('learningStylesPreviewOverlay').classList.add('show');
+}
+function closeLearningStylesPreview(){ document.getElementById('learningStylesPreviewOverlay').classList.remove('show'); }
+function doPrintLearningStyles(){
+  const entry = rptEntries('learning-styles-report').find(e=> e.id === learningStylesPreviewEntryId);
+  if(!entry) return;
+  document.getElementById('printView').innerHTML = buildLearningStylesPageHtml(entry);
+  printNow();
 }
 function openEvalSubs(catId, title, subs){
   document.getElementById('evalSubTitle').textContent = title;
