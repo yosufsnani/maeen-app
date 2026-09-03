@@ -1007,6 +1007,7 @@
 .maeen-confirm-actions button{flex:1; padding:12px; border-radius:12px; font-size:14px; font-weight:800; font-family:inherit; cursor:pointer; border:none;}
 .maeen-confirm-cancel{background:#F3F7FB; color:#5b6572;}
 .maeen-confirm-ok{background:linear-gradient(135deg,#0F4C81,#0EA5E9); color:#fff;}
+.maeen-prompt-input{width:100%; box-sizing:border-box; padding:12px 14px; margin:-8px 0 18px; border:1px solid #E2E8F0; background:#F3F7FB; border-radius:12px; font:14px inherit; text-align:right; outline:none;}
 </style>
 <div id="maeenConfirmOverlay" class="maeen-confirm-overlay">
   <div class="maeen-confirm-card">
@@ -1018,7 +1019,43 @@
     </div>
   </div>
 </div>
+<div id="maeenPromptOverlay" class="maeen-confirm-overlay">
+  <div class="maeen-confirm-card">
+    <div class="maeen-confirm-msg" id="maeenPromptMsg"></div>
+    <input type="text" id="maeenPromptInput" class="maeen-prompt-input" autocomplete="off">
+    <div class="maeen-confirm-actions">
+      <button type="button" class="maeen-confirm-cancel" id="maeenPromptCancel">إلغاء</button>
+      <button type="button" class="maeen-confirm-ok" id="maeenPromptOk">حفظ</button>
+    </div>
+  </div>
+</div>
 <script>
+/* حوار إدخال نصّي — لا يوفّر المتصفح واحداً يناسب الواجهة */
+window.maeenPrompt = function(message, initial){
+  return new Promise((resolve) => {
+    const overlay = document.getElementById('maeenPromptOverlay');
+    const input = document.getElementById('maeenPromptInput');
+    const okBtn = document.getElementById('maeenPromptOk');
+    const cancelBtn = document.getElementById('maeenPromptCancel');
+    document.getElementById('maeenPromptMsg').textContent = message;
+    input.value = initial || '';
+    overlay.classList.add('show');
+    window.setTimeout(() => input.focus(), 50);
+    function cleanup(result){
+      overlay.classList.remove('show');
+      okBtn.removeEventListener('click', onOk);
+      cancelBtn.removeEventListener('click', onCancel);
+      input.removeEventListener('keydown', onKey);
+      resolve(result);
+    }
+    function onOk(){ cleanup(input.value.trim() || null); }
+    function onCancel(){ cleanup(null); }
+    function onKey(event){ if (event.key === 'Enter') onOk(); if (event.key === 'Escape') onCancel(); }
+    okBtn.addEventListener('click', onOk);
+    cancelBtn.addEventListener('click', onCancel);
+    input.addEventListener('keydown', onKey);
+  });
+};
 window.maeenConfirm = function(message){
   return new Promise((resolve) => {
     const overlay = document.getElementById('maeenConfirmOverlay');
@@ -1514,6 +1551,7 @@ window.maeenAlert = function(message, tone){
     <div class="sgal-attach-item" onclick="sgalShowAddMenu()"><span>＋</span> إضافة شاهد</div>
     <div class="sgal-attach-item" id="sgalMenuOpen" onclick="sgalOpenCurrent()"><span>👁️</span> فتح الشاهد</div>
     <div class="sgal-attach-item is-danger" id="sgalMenuDelete" onclick="sgalDeleteCurrent()"><span>🗑️</span> حذف الشاهد</div>
+    <div class="sgal-attach-item is-danger" id="sgalMenuDeleteSection" hidden onclick="sgalDeleteSection()"><span>✖️</span> حذف القسم</div>
   </div>
   <div class="sgal-menu-panel" id="sgalMenuAdd" hidden>
     <div class="sgal-attach-item is-back" onclick="sgalShowMainMenu()"><span>›</span> رجوع</div>
@@ -3351,6 +3389,70 @@ async function loadState(){
   }catch(e){ state = {}; }
   render();
 }
+/* ===== أقسام يضيفها المعلّم بنفسه =====
+   تُحفظ منفصلة عن الشواهد، ثم تُدمج في DATA عند الإقلاع،
+   فتراها بقية الشاشات (العدّ، الطباعة، البحث) بلا تغيير فيها. */
+let customSubs = {};                       // { catId: [{id, title, cls}] }
+const SUB_COLOR_CYCLE = ['c-green', 'c-yellow', 'c-pink', 'c-blue'];
+
+function applyCustomSubs(){
+  Object.entries(customSubs).forEach(([catId, subs]) => {
+    const cat = DATA.find(c => c.id === catId);
+    if (!cat || !Array.isArray(cat.subs) || !Array.isArray(subs)) return;
+    subs.forEach(sub => {
+      if (!cat.subs.some(s => s.id === sub.id)) cat.subs.push({ ...sub, custom: true });
+    });
+  });
+}
+
+async function loadCustomSubs(){
+  try{
+    const res = await window.storage.get('portfolio-custom-subs');
+    if(res && res.value) customSubs = JSON.parse(res.value);
+  }catch(e){ customSubs = {}; }
+  applyCustomSubs();
+}
+
+async function persistCustomSubs(){
+  try{ await window.storage.set('portfolio-custom-subs', JSON.stringify(customSubs), false); }
+  catch(e){ console.error(e); }
+}
+
+async function addCustomSub(catId){
+  const cat = DATA.find(c => c.id === catId);
+  if (!cat || !Array.isArray(cat.subs)) return;
+  const title = await window.maeenPrompt(`اسم القسم الجديد داخل «${cat.title}»`);
+  if (!title) return;
+  if (cat.subs.some(s => s.title === title)) { window.maeenAlert('يوجد قسم بهذا الاسم بالفعل.'); return; }
+  const sub = {
+    id: 'custom-' + Date.now().toString(36),
+    title,
+    cls: SUB_COLOR_CYCLE[cat.subs.length % SUB_COLOR_CYCLE.length],
+    custom: true
+  };
+  cat.subs.push(sub);
+  (customSubs[catId] = customSubs[catId] || []).push({ id: sub.id, title: sub.title, cls: sub.cls });
+  await persistCustomSubs();
+  openCats.add(catId);
+  render();
+}
+
+async function deleteCustomSub(catId, subId){
+  const cat = DATA.find(c => c.id === catId);
+  const sub = cat && cat.subs ? cat.subs.find(s => s.id === subId) : null;
+  if (!sub || !sub.custom) return;
+  const count = getEntries(catId, subId).length;
+  const warning = count ? ` سيُحذف معه ${count} ${count === 1 ? 'شاهد' : 'شواهد'}.` : '';
+  const accepted = await window.maeenConfirm(`هل تريد حذف قسم «${sub.title}»؟${warning}`);
+  if (!accepted) return;
+  cat.subs = cat.subs.filter(s => s.id !== subId);
+  customSubs[catId] = (customSubs[catId] || []).filter(s => s.id !== subId);
+  if (state[catId]) delete state[catId][subId];
+  await Promise.all([persistCustomSubs(), persist()]);
+  closeSubGallery();
+  render();
+}
+
 async function persist(){
   try{ await window.storage.set('portfolio-kushoof-style', JSON.stringify(state), false); }
   catch(e){ console.error(e); }
@@ -3487,7 +3589,7 @@ function render(){
       bodyHtml = PERF_GUIDE_HTML;
     } else if(cat.subs){
       bodyHtml = `
-        <div class="add-row" onclick="event.stopPropagation()">
+        <div class="add-row" onclick="event.stopPropagation(); addCustomSub('${cat.id}')">
           <span class="add-circle">+</span> إضافة قسم
         </div>
         <div class="sub-grid">
@@ -4383,6 +4485,8 @@ function sgalSyncMenu(){
   const slide = sgalSlides[sgalIndex];
   const openItem = document.getElementById('sgalMenuOpen');
   const deleteItem = document.getElementById('sgalMenuDelete');
+  const sectionItem = document.getElementById('sgalMenuDeleteSection');
+  if (sectionItem) sectionItem.hidden = !sgalIsCustomSection();   // الأقسام الأصلية لا تُحذف
   if (deleteItem) deleteItem.hidden = !slide;
   if (!openItem) return;
   openItem.hidden = !slide || slide.kind === 'image' || slide.kind === 'note';
@@ -4414,6 +4518,17 @@ function sgalOpenCurrent(){
     link.click();
     link.remove();
   }
+}
+
+function sgalIsCustomSection(){
+  const cat = DATA.find(c => c.id === sgalCtx?.catId);
+  const sub = cat && cat.subs ? cat.subs.find(s => s.id === sgalCtx.subId) : null;
+  return !!(sub && sub.custom);
+}
+
+function sgalDeleteSection(){
+  toggleSgalMenu(false);
+  deleteCustomSub(sgalCtx.catId, sgalCtx.subId);
 }
 
 async function sgalDeleteCurrent(){
@@ -9906,6 +10021,7 @@ function doPrintCurrplan(){
 }
 
 window.maeenInitApp = async function(){
+  await loadCustomSubs();
   await loadState();
   await loadRepData();
   await loadShwState();
@@ -11637,7 +11753,16 @@ body, .app{transition:background-color .18s ease, color .18s ease;}
 /* معاينة التقرير تُفتح من داخل شاشة القسم، فيجب أن تعلوها:
    الاثنتان .modal-overlay بنفس z-index، وترتيب DOM كان يضع القسم فوقها. */
 #linkedReportPreviewOverlay{z-index:700;}
-.menu-overlay, .modal-overlay{background:var(--m-overlay);}
+.menu-overlay, .modal-overlay, .maeen-confirm-overlay{background:var(--m-overlay);}
+.maeen-confirm-card{background:var(--m-surface) !important; color:var(--m-ink);}
+.maeen-confirm-msg{color:var(--m-ink) !important; font:400 14.5px/1.8 var(--m-ui);}
+.maeen-confirm-cancel{background:var(--m-surface-2) !important; color:var(--m-ink) !important;}
+.maeen-confirm-ok{background:var(--m-accent) !important; color:var(--m-accent-ink) !important;}
+.maeen-prompt-input{
+  border:1px solid var(--m-line) !important; background:var(--m-surface-2) !important;
+  color:var(--m-ink) !important; font-family:var(--m-ui) !important;
+}
+.maeen-prompt-input:focus{border-color:var(--m-accent) !important;}
 .menu-sheet{background:var(--m-surface); border:1px solid var(--m-line); border-radius:16px; box-shadow:var(--m-shadow-lg);}
 .menu-item{color:var(--m-ink); font:400 14.5px/1 var(--m-ui);}
 .menu-item:hover{background:var(--m-surface-2);}
