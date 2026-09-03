@@ -428,7 +428,10 @@
   .rpt3-header{background:linear-gradient(135deg,var(--brand-navy),#082C4A); padding:18px 22px; display:flex; align-items:flex-start; justify-content:space-between; gap:10px;}
   .rpt3-header-right{order:1; text-align:right; color:#fff; font-size:11.5px; line-height:1.75; font-weight:700; flex:1; min-width:0;}
   .rpt3-header-center{order:2; text-align:center; flex-shrink:0; padding-top:2px;}
+  .rpt3-header-center{display:flex; flex-direction:column; align-items:center; gap:7px;}
   .rpt3-header-center img{width:98px; height:auto; display:block; object-fit:contain; background:transparent; border-radius:0; padding:0;}
+  .rpt3-extra-logo{width:auto !important; max-width:98px; max-height:34px; object-fit:contain;}
+  .rpt2-extra-logo{display:block; margin:5px auto 0; width:auto; max-width:106px; max-height:34px; object-fit:contain;}
   .rpt3-header-left{order:3; text-align:left; color:#fff; font-size:11.5px; line-height:1.75; font-weight:700; opacity:.92; flex:1; min-width:0;}
   .rpt3-body{padding:20px 20px 22px; flex:1; display:flex; flex-direction:column;}
   .rpt3-title-bar{background:linear-gradient(90deg,var(--brand-green),#0C9468); color:#fff; font-weight:900; font-size:14.5px; text-align:center; border-radius:12px; padding:12px 16px; margin-bottom:8px;}
@@ -854,15 +857,28 @@
     host.id = 'maeen-data-tools';
     host.className = 'maeen-settings-data-card';
     host.dir = 'rtl';
+    /* بطاقة منسدلة على نمط بقية بطاقات الإعدادات، بدل أزرار متلاصقة تلتفّ على سطرين */
     host.innerHTML = `
-      <div class="maeen-data-tools__title"><span class="maeen-data-tools__dot"></span> بياناتك محفوظة بأمان في حسابك السحابي</div>
-      <div class="maeen-data-tools__actions">
-        <button type="button" class="maeen-data-action" id="maeen-export-data">نسخة احتياطية</button>
-        <label class="maeen-data-action" for="maeen-import-data">استعادة نسخة</label>
-        <input id="maeen-import-data" type="file" accept="application/json,.json" hidden>
-        <button type="button" class="maeen-data-action maeen-data-action--subtle" id="maeen-clear-data">إعادة ضبط</button>
-        <button type="button" class="maeen-data-action maeen-data-action--subtle" id="maeen-logout">تسجيل خروج</button>
+      <div class="rep-datacard-head" data-maeen-data-toggle>
+        <div style="text-align:right; flex:1;">
+          <div class="rep-datacard-title">البيانات والحساب</div>
+          <div class="rep-datacard-sub"><span class="maeen-data-tools__dot"></span> محفوظة في حسابك السحابي</div>
+        </div>
+        <span class="chev" id="maeen-data-chev">⌄</span>
+      </div>
+      <div class="rep-fields" id="maeen-data-fields">
+        <div class="maeen-data-tools__actions">
+          <button type="button" class="maeen-data-action" id="maeen-export-data"><b>نسخة احتياطية</b><small>نزّل نسخة من ملفك على هذا الجهاز</small></button>
+          <label class="maeen-data-action" for="maeen-import-data"><b>استعادة نسخة</b><small>استرجع ملفك من نسخة محفوظة</small></label>
+          <input id="maeen-import-data" type="file" accept="application/json,.json" hidden>
+          <button type="button" class="maeen-data-action maeen-data-action--subtle" id="maeen-clear-data"><b>إعادة ضبط</b><small>يمسح ملف الإنجاز من هذا الحساب</small></button>
+          <button type="button" class="maeen-data-action maeen-data-action--subtle" id="maeen-logout"><b>تسجيل خروج</b><small>إنهاء الجلسة على هذا الجهاز</small></button>
+        </div>
       </div>`;
+    host.querySelector('[data-maeen-data-toggle]').addEventListener('click', () => {
+      const open = host.querySelector('#maeen-data-fields').classList.toggle('open');
+      host.querySelector('#maeen-data-chev').style.transform = open ? 'rotate(180deg)' : 'rotate(0deg)';
+    });
     const settingsView = document.getElementById('viewReports');
     if (settingsView) settingsView.prepend(host);
     else document.body.appendChild(host);
@@ -1447,13 +1463,26 @@ window.maeenAlert = function(message, tone){
       </div>
       <div class="rep-fields" id="repSettingsFields">
         <div class="rep-fields-inner">
-          <div class="rep-field-label">شعار التقرير</div>
-          <div style="display:flex; align-items:center; justify-content:flex-end; gap:12px; background:var(--m-surface-2); border:1px solid var(--m-line); border-radius:12px; padding:12px 14px; margin-bottom:14px;">
-            <div style="text-align:right;">
-              <div style="font-weight:700; font-size:13.5px;">شعار وزارة التعليم</div>
-              <div style="font-size:11.5px; color:var(--dim); margin-top:2px;">يظهر تلقائياً وبشكل ثابت أعلى جميع التقارير</div>
+          <div class="rep-field-label">شعارات التقرير</div>
+          <div class="rep-logo-row">
+            <div class="rep-logo-text">
+              <div class="rep-logo-name">شعار وزارة التعليم</div>
+              <div class="rep-logo-note">يظهر تلقائياً وبشكل ثابت أعلى جميع التقارير</div>
             </div>
-            <img id="repFixedLogoImg" style="width:64px;height:auto;object-fit:contain;border-radius:8px;background:#fff;border:1px solid var(--m-line);padding:4px;flex-shrink:0;">
+            <div class="rep-logo-chip"><img id="repFixedLogoImg" alt="شعار وزارة التعليم"></div>
+          </div>
+
+          <div class="rep-logo-row">
+            <div class="rep-logo-text">
+              <div class="rep-logo-name">شعار إضافي <span id="repExtraLogoState">(غير مضاف)</span></div>
+              <div class="rep-logo-note">شعار المدرسة أو برنامج مثل «نافس» — يظهر بجانب شعار الوزارة</div>
+              <div class="rep-logo-actions">
+                <label class="rep-logo-btn" for="repExtraLogoInput">اختيار صورة</label>
+                <button type="button" class="rep-logo-btn is-danger" id="repExtraLogoRemove" hidden onclick="removeExtraLogo()">إزالة</button>
+                <input type="file" accept="image/*" id="repExtraLogoInput" hidden onchange="handleExtraLogo(this)">
+              </div>
+            </div>
+            <div class="rep-logo-chip" id="repExtraLogoChip" hidden><img id="repExtraLogoImg" alt="الشعار الإضافي"></div>
           </div>
 
           <div class="rep-subhead" onclick="toggleRepSub('style')">
@@ -1473,8 +1502,11 @@ window.maeenAlert = function(message, tone){
                 <div>
                   <div class="rep-field-label">نوع الخط</div>
                   <select class="rep-field-input" id="repFont" onchange="setRepFont(this.value)">
-                    <option value="default">الافتراضي</option>
-                    <option value="simple">خط مبسّط</option>
+                    <option value="default">تجوال — الافتراضي</option>
+                    <option value="kufi">كوفي رسمي</option>
+                    <option value="naskh">نسخي واضح</option>
+                    <option value="plex">بليكس عربي</option>
+                    <option value="simple">خط الجهاز</option>
                   </select>
                 </div>
                 <div>
@@ -4163,7 +4195,7 @@ function buildStrategyPageHtml(entry){
             <div>${escapeHtml(repData.school || 'اسم المدرسة')}</div>
           </div>
           <div class="rpt2-header-center">
-            <div class="rpt2-logo-badge"><img src="${MOE_LOGO}"></div>
+            <div class="rpt2-logo-badge"><img src="${MOE_LOGO}"></div>${extraLogoHtml('rpt2-extra-logo')}
             <div class="rpt2-logo-text">${escapeHtml(repData.school || 'شعار المدرسة')}</div>
           </div>
           <div class="rpt2-header-left">
@@ -4957,7 +4989,9 @@ async function loadRepData(){
   document.getElementById('repSemester').value = repData.semester;
   setRepGender(repData.gender, true);
   document.getElementById('repFixedLogoImg').src = MOE_LOGO;
+  syncExtraLogoUI();
   document.getElementById('repFont').value = repData.font;
+  ensureReportFont(repData.font);        // الخط المحفوظ يُحمَّل عند الإقلاع
   document.getElementById('repScale').value = String(repData.scale);
   applyStyleActiveUI();
 }
@@ -4978,16 +5012,79 @@ async function setRepStyle(key){
   applyStyleActiveUI();
   await window.storage.set('portfolio-main-data', JSON.stringify(repData), false);
 }
+/* خطوط التقارير: تُحمَّل عند اختيارها فقط، فلا تثقل فتح التطبيق لمن لا يستخدمها */
+const REPORT_FONTS = {
+  default: { stack: "'Tajawal', sans-serif" },
+  kufi:    { stack: "'Noto Kufi Arabic', 'Tajawal', sans-serif", google: 'Noto+Kufi+Arabic:wght@400;500;700' },
+  naskh:   { stack: "'Noto Naskh Arabic', 'Tajawal', serif",     google: 'Noto+Naskh+Arabic:wght@400;500;700' },
+  plex:    { stack: "'IBM Plex Sans Arabic', 'Tajawal', sans-serif", google: 'IBM+Plex+Sans+Arabic:wght@400;500;700' },
+  simple:  { stack: 'Arial, Tahoma, sans-serif' },
+};
+
+function ensureReportFont(key){
+  const font = REPORT_FONTS[key];
+  if (!font || !font.google) return;
+  const id = 'maeen-font-' + key;
+  if (document.getElementById(id)) return;
+  const link = document.createElement('link');
+  link.id = id;
+  link.rel = 'stylesheet';
+  link.href = `https://fonts.googleapis.com/css2?family=${font.google}&display=swap`;
+  document.head.appendChild(link);
+}
+
 async function setRepFont(val){
   repData.font = val;
+  ensureReportFont(val);
   await window.storage.set('portfolio-main-data', JSON.stringify(repData), false);
 }
 async function setRepScale(val){
   repData.scale = +val;
   await window.storage.set('portfolio-main-data', JSON.stringify(repData), false);
 }
+/* شعار إضافي اختياري (شعار المدرسة أو برنامج مثل «نافس») يُحفظ مع بقية بيانات التقرير */
+async function handleExtraLogo(input){
+  const file = input.files && input.files[0];
+  input.value = '';
+  if (!file) return;
+  try {
+    repData.extraLogo = await compressImage(file);
+    await window.storage.set('portfolio-main-data', JSON.stringify(repData), false);
+    syncExtraLogoUI();
+    window.maeenNotify?.('تم حفظ الشعار الإضافي — سيظهر أعلى التقارير.', 'success');
+  } catch (error) {
+    console.error(error);
+    window.maeenAlert('تعذر قراءة الصورة. جرّب صورة أخرى.');
+  }
+}
+
+async function removeExtraLogo(){
+  const accepted = await window.maeenConfirm('هل تريد إزالة الشعار الإضافي من التقارير؟');
+  if (!accepted) return;
+  delete repData.extraLogo;
+  await window.storage.set('portfolio-main-data', JSON.stringify(repData), false);
+  syncExtraLogoUI();
+}
+
+function syncExtraLogoUI(){
+  const chip = document.getElementById('repExtraLogoChip');
+  const img = document.getElementById('repExtraLogoImg');
+  const removeBtn = document.getElementById('repExtraLogoRemove');
+  const stateEl = document.getElementById('repExtraLogoState');
+  const has = !!repData.extraLogo;
+  if (chip) chip.hidden = !has;
+  if (img && has) img.src = repData.extraLogo;
+  if (removeBtn) removeBtn.hidden = !has;
+  if (stateEl) stateEl.textContent = has ? '' : '(غير مضاف)';
+}
+
+/* يُدرج بجانب شعار الوزارة في ترويسة كل تقرير */
+function extraLogoHtml(cls){
+  return repData.extraLogo ? `<img class="${cls}" src="${repData.extraLogo}" alt="">` : '';
+}
+
 function reportThemeClass(){ return 'theme-' + (repData.style || 'original'); }
-function reportFontFamily(){ return repData.font === 'simple' ? 'Arial, Tahoma, sans-serif' : "'Tajawal', sans-serif"; }
+function reportFontFamily(){ return (REPORT_FONTS[repData.font] || REPORT_FONTS.default).stack; }
 function reportCardStyle(){ return `font-family:${reportFontFamily()}; zoom:${repData.scale || 100}%;`; }
 
 function toggleRepSettings(){
@@ -5595,7 +5692,7 @@ function buildActPageHtml(entry){
             <div>${escapeHtml(repData.school || 'اسم المدرسة')}</div>
           </div>
           <div class="rpt3-header-center">
-            <img src="${MOE_LOGO}">
+            <img src="${MOE_LOGO}">${extraLogoHtml('rpt3-extra-logo')}
           </div>
           <div class="rpt3-header-left">
             <div>العام الدراسي ${escapeHtml(repData.year || '1448')}هـ</div>
@@ -5799,7 +5896,7 @@ function buildRadioPageHtml(entry){
           <div class="rpt2-header-center">
             <div class="rpt2-logo-badge">
               <img src="${MOE_LOGO}">
-            </div>
+            </div>${extraLogoHtml('rpt2-extra-logo')}
             <div class="rpt2-logo-text">${escapeHtml(repData.school || 'شعار المدرسة')}</div>
           </div>
           <div class="rpt2-header-left">
@@ -6030,7 +6127,7 @@ function buildExtraPageHtml(entry){
           <div class="rpt2-header-center">
             <div class="rpt2-logo-badge">
               <img src="${MOE_LOGO}">
-            </div>
+            </div>${extraLogoHtml('rpt2-extra-logo')}
             <div class="rpt2-logo-text">${escapeHtml(repData.school || 'شعار المدرسة')}</div>
           </div>
           <div class="rpt2-header-left">
@@ -6263,7 +6360,7 @@ function buildWaitPageHtml(entry){
           <div class="rpt2-header-center">
             <div class="rpt2-logo-badge">
               <img src="${MOE_LOGO}">
-            </div>
+            </div>${extraLogoHtml('rpt2-extra-logo')}
             <div class="rpt2-logo-text">${escapeHtml(repData.school || 'شعار المدرسة')}</div>
           </div>
           <div class="rpt2-header-left">
@@ -6501,7 +6598,7 @@ function buildApplPageHtml(entry){
           <div class="rpt2-header-center">
             <div class="rpt2-logo-badge">
               <img src="${MOE_LOGO}">
-            </div>
+            </div>${extraLogoHtml('rpt2-extra-logo')}
             <div class="rpt2-logo-text">${escapeHtml(repData.school || 'شعار المدرسة')}</div>
           </div>
           <div class="rpt2-header-left">
@@ -6718,7 +6815,7 @@ function buildWsrunPageHtml(entry){
           <div class="rpt2-header-center">
             <div class="rpt2-logo-badge">
               <img src="${MOE_LOGO}">
-            </div>
+            </div>${extraLogoHtml('rpt2-extra-logo')}
             <div class="rpt2-logo-text">${escapeHtml(repData.school || 'شعار المدرسة')}</div>
           </div>
           <div class="rpt2-header-left">
@@ -6935,7 +7032,7 @@ function buildWsattPageHtml(entry){
           <div class="rpt2-header-center">
             <div class="rpt2-logo-badge">
               <img src="${MOE_LOGO}">
-            </div>
+            </div>${extraLogoHtml('rpt2-extra-logo')}
             <div class="rpt2-logo-text">${escapeHtml(repData.school || 'شعار المدرسة')}</div>
           </div>
           <div class="rpt2-header-left">
@@ -7213,7 +7310,7 @@ function buildVisitPageHtml(entry){
           <div class="rpt2-header-center">
             <div class="rpt2-logo-badge">
               <img src="${MOE_LOGO}">
-            </div>
+            </div>${extraLogoHtml('rpt2-extra-logo')}
             <div class="rpt2-logo-text">${escapeHtml(repData.school || 'شعار المدرسة')}</div>
           </div>
           <div class="rpt2-header-left">
@@ -7500,7 +7597,7 @@ function buildPlcPageHtml(entry){
           <div class="rpt2-header-center">
             <div class="rpt2-logo-badge">
               <img src="${MOE_LOGO}">
-            </div>
+            </div>${extraLogoHtml('rpt2-extra-logo')}
             <div class="rpt2-logo-text">${escapeHtml(repData.school || 'شعار المدرسة')}</div>
           </div>
           <div class="rpt2-header-left">
@@ -7718,7 +7815,7 @@ function buildParentPageHtml(entry){
           <div class="rpt2-header-center">
             <div class="rpt2-logo-badge">
               <img src="${MOE_LOGO}">
-            </div>
+            </div>${extraLogoHtml('rpt2-extra-logo')}
             <div class="rpt2-logo-text">${escapeHtml(repData.school || 'شعار المدرسة')}</div>
           </div>
           <div class="rpt2-header-left">
@@ -8238,7 +8335,7 @@ function buildStratPageHtml(entry){
           <div class="rpt2-header-center">
             <div class="rpt2-logo-badge">
               <img src="${MOE_LOGO}">
-            </div>
+            </div>${extraLogoHtml('rpt2-extra-logo')}
             <div class="rpt2-logo-text">${escapeHtml(repData.school || 'شعار المدرسة')}</div>
           </div>
           <div class="rpt2-header-left">
@@ -8551,7 +8648,7 @@ function buildTechPageHtml(entry){
             <div>${escapeHtml(repData.school || 'اسم المدرسة')}</div>
           </div>
           <div class="rpt2-header-center">
-            <div class="rpt2-logo-badge"><img src="${MOE_LOGO}"></div>
+            <div class="rpt2-logo-badge"><img src="${MOE_LOGO}"></div>${extraLogoHtml('rpt2-extra-logo')}
             <div class="rpt2-logo-text">${escapeHtml(repData.school || 'شعار المدرسة')}</div>
           </div>
           <div class="rpt2-header-left">
@@ -8715,7 +8812,7 @@ function buildRemedialPageHtml(entry){
             <div>${escapeHtml(repData.school || 'اسم المدرسة')}</div>
           </div>
           <div class="rpt2-header-center">
-            <div class="rpt2-logo-badge"><img src="${MOE_LOGO}"></div>
+            <div class="rpt2-logo-badge"><img src="${MOE_LOGO}"></div>${extraLogoHtml('rpt2-extra-logo')}
             <div class="rpt2-logo-text">${escapeHtml(repData.school || 'شعار المدرسة')}</div>
           </div>
           <div class="rpt2-header-left">
@@ -8862,7 +8959,7 @@ function buildEnrichPageHtml(entry){
             <div>${escapeHtml(repData.school || 'اسم المدرسة')}</div>
           </div>
           <div class="rpt2-header-center">
-            <div class="rpt2-logo-badge"><img src="${MOE_LOGO}"></div>
+            <div class="rpt2-logo-badge"><img src="${MOE_LOGO}"></div>${extraLogoHtml('rpt2-extra-logo')}
             <div class="rpt2-logo-text">${escapeHtml(repData.school || 'شعار المدرسة')}</div>
           </div>
           <div class="rpt2-header-left">
@@ -9019,7 +9116,7 @@ function buildEnrichStuPageHtml(entry){
             <div>${escapeHtml(repData.school || 'اسم المدرسة')}</div>
           </div>
           <div class="rpt2-header-center">
-            <div class="rpt2-logo-badge"><img src="${MOE_LOGO}"></div>
+            <div class="rpt2-logo-badge"><img src="${MOE_LOGO}"></div>${extraLogoHtml('rpt2-extra-logo')}
             <div class="rpt2-logo-text">${escapeHtml(repData.school || 'شعار المدرسة')}</div>
           </div>
           <div class="rpt2-header-left">
@@ -9167,7 +9264,7 @@ function buildTestresPageHtml(entry){
             <div>${escapeHtml(repData.school || 'اسم المدرسة')}</div>
           </div>
           <div class="rpt2-header-center">
-            <div class="rpt2-logo-badge"><img src="${MOE_LOGO}"></div>
+            <div class="rpt2-logo-badge"><img src="${MOE_LOGO}"></div>${extraLogoHtml('rpt2-extra-logo')}
             <div class="rpt2-logo-text">${escapeHtml(repData.school || 'شعار المدرسة')}</div>
           </div>
           <div class="rpt2-header-left">
@@ -9370,7 +9467,7 @@ function buildTestAnalysisPageHtml(entry){
             <div>${escapeHtml(repData.school || 'اسم المدرسة')}</div>
           </div>
           <div class="rpt2-header-center">
-            <div class="rpt2-logo-badge"><img src="${MOE_LOGO}"></div>
+            <div class="rpt2-logo-badge"><img src="${MOE_LOGO}"></div>${extraLogoHtml('rpt2-extra-logo')}
             <div class="rpt2-logo-text">${escapeHtml(repData.school || 'شعار المدرسة')}</div>
           </div>
           <div class="rpt2-header-left">
@@ -9531,7 +9628,7 @@ function buildHonorPageHtml(entry){
             <div>${escapeHtml(repData.school || 'اسم المدرسة')}</div>
           </div>
           <div class="rpt2-header-center">
-            <div class="rpt2-logo-badge"><img src="${MOE_LOGO}"></div>
+            <div class="rpt2-logo-badge"><img src="${MOE_LOGO}"></div>${extraLogoHtml('rpt2-extra-logo')}
             <div class="rpt2-logo-text">${escapeHtml(repData.school || 'شعار المدرسة')}</div>
           </div>
           <div class="rpt2-header-left">
@@ -9974,7 +10071,7 @@ function buildCurrplanPageHtml(entry){
             <div>${escapeHtml(repData.school || 'اسم المدرسة')}</div>
           </div>
           <div class="rpt2-header-center">
-            <div class="rpt2-logo-badge"><img src="${MOE_LOGO}"></div>
+            <div class="rpt2-logo-badge"><img src="${MOE_LOGO}"></div>${extraLogoHtml('rpt2-extra-logo')}
             <div class="rpt2-logo-text">${escapeHtml(repData.school || 'شعار المدرسة')}</div>
           </div>
           <div class="rpt2-header-left">
@@ -11667,7 +11764,19 @@ body, .app{transition:background-color .18s ease, color .18s ease;}
 .scale-row select{width:100%;}
 
 /* بطاقة البيانات والحساب */
+.maeen-settings-data-card .rep-datacard-head{display:flex; align-items:center; gap:14px; cursor:pointer;}
+.maeen-settings-data-card .rep-datacard-sub{display:flex; align-items:center; gap:7px;}
+.maeen-data-tools__actions{display:flex; flex-direction:column; gap:8px; padding-top:14px;}
+.maeen-data-action{
+  display:flex !important; flex-direction:column; align-items:flex-end !important; gap:2px;
+  width:100%; min-height:auto; padding:12px 14px; text-align:right;
+}
+.maeen-data-action b{font:500 13px/1.3 var(--m-ui);}
+.maeen-data-action small{color:var(--m-muted); font:300 11px/1.5 var(--m-ui);}
+.maeen-data-action--subtle small{color:var(--m-muted);}
 .maeen-settings-data-card{
+  /* قاعدة أخرى تفرض display:flex بـ !important، فنجعل المحور رأسياً لتمتد الصفوف بعرض البطاقة */
+  flex-direction:column !important;
   width:auto !important;
   margin:0 20px 12px !important; padding:16px 18px !important;
   border:1px solid var(--m-line) !important; border-radius:14px !important;
@@ -11709,6 +11818,32 @@ body, .app{transition:background-color .18s ease, color .18s ease;}
   background:var(--m-accent) !important; color:var(--m-accent-ink) !important; font:500 10px/1 var(--m-ui) !important;
 }
 .maeen-move-panel button[data-maeen-move-cancel]{background:transparent !important; color:var(--m-muted) !important; border-color:var(--m-line) !important;}
+
+/* شعارات التقرير في الإعدادات */
+.rep-logo-row{
+  display:flex; align-items:center; justify-content:space-between; gap:14px;
+  padding:13px 14px; margin-bottom:10px;
+  border:1px solid var(--m-line); border-radius:12px; background:var(--m-surface-2);
+}
+.rep-logo-text{min-width:0;}
+.rep-logo-name{color:var(--m-ink); font:500 13.5px/1.4 var(--m-ui);}
+.rep-logo-name span{color:var(--m-muted); font-weight:300;}
+.rep-logo-note{margin-top:3px; color:var(--m-muted); font:300 11.5px/1.6 var(--m-ui);}
+/* الشعار مفرّغ ويُقرأ على داكن، فالمعاينة تعرضه على نفس أرضية ترويسة التقرير */
+.rep-logo-chip{
+  flex:none; width:88px; padding:9px 10px; border-radius:10px;
+  background:linear-gradient(135deg,#134C7A,#0B2E4A); display:flex; align-items:center; justify-content:center;
+}
+.rep-logo-chip img{width:100%; height:auto; display:block; object-fit:contain;}
+.rep-logo-actions{display:flex; gap:7px; margin-top:9px;}
+.rep-logo-btn{
+  display:inline-flex; align-items:center; min-height:32px; padding:0 12px;
+  border:1px solid var(--m-line); border-radius:9px; background:var(--m-surface);
+  color:var(--m-ink-2); font:400 11.5px/1 var(--m-ui); cursor:pointer;
+}
+.rep-logo-btn:hover{border-color:var(--m-accent); color:var(--m-accent);}
+.rep-logo-btn.is-danger{color:var(--m-danger);}
+.rep-logo-btn.is-danger:hover{border-color:var(--m-danger); color:var(--m-danger);}
 
 /* بطاقة اختيار المظهر */
 .maeen-theme-card .rep-datacard-sub{margin-bottom:14px;}
