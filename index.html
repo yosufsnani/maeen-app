@@ -11845,7 +11845,8 @@ body, .app{transition:background-color .18s ease, color .18s ease;}
 .maeen-settings-data-card .rep-datacard-sub{display:flex; align-items:center; gap:7px;}
 .maeen-data-tools__actions{display:flex; flex-direction:column; gap:8px; padding-top:14px;}
 .maeen-data-action{
-  display:flex !important; flex-direction:column; align-items:flex-end !important; gap:2px;
+  /* في عمود RTL يكون flex-end هو اليسار — الصحيح flex-start ليحاذي اليمين */
+  display:flex !important; flex-direction:column; align-items:flex-start !important; gap:2px;
   width:100%; min-height:auto; padding:12px 14px; text-align:right;
 }
 .maeen-data-action b{font:500 13px/1.3 var(--m-ui);}
