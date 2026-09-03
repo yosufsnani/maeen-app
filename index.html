@@ -263,10 +263,8 @@
     font-weight:700; font-size:14.5px; margin-bottom:10px; cursor:pointer;
     border:2px solid transparent; color:var(--ink); background:#F1F1F5;
   }
-  .style-opt[data-k="simple"], .style-opt[data-k="lavender-simple"]{background:#F7F7FA; color:var(--dim);}
+  .style-opt[data-k="simple"]{background:#F7F7FA; color:var(--dim); border-color:#DCDCE4;}
   .style-opt[data-k="original"]{background:#1C3D6E; color:#fff;}
-  .style-opt[data-k="gradient"]{background:linear-gradient(90deg,#2F80ED,#8BC34A); color:#fff;}
-  .style-opt[data-k="lavender"]{background:linear-gradient(90deg,#8E7CC3,#B39DDB); color:#fff;}
   .style-opt.active{border-color:var(--blue-cta); box-shadow:0 0 0 2px rgba(47,128,237,0.25);}
   .style-opt-check{display:inline-block; margin-inline-start:6px;}
   .style-opt.active .style-opt-check::after{content:"✓";}
@@ -371,18 +369,23 @@
   .theme-simple .shw-chip{background:#fff; border:1px solid #E4E4EA;}
   .theme-simple .shw-section-title{border-bottom-color:#D5D5DC;}
 
-  .theme-gradient .shw-accent{background:linear-gradient(90deg,#2F80ED,#8BC34A) !important;}
-  .theme-gradient .shw-title-box{background:linear-gradient(135deg,#EAF3FF,#EFFAF0);}
+  /* «توفير حبر» يشمل صفحات التقارير كلها لا صفحة الشاهد وحدها:
+     يُفرَّغ كل ما يُملأ باللون، ويبقى التخطيط والحدود كما هي. */
+  [data-report-style="simple"] .rpt2-topbar,
+  [data-report-style="simple"] .rpt3-topbar{background:#fff !important; border-bottom:2px solid #C9CED4;}
+  [data-report-style="simple"] .rpt3-footer{background:#fff !important; border-top:2px solid #C9CED4;}
+  [data-report-style="simple"] .rpt2-header,
+  [data-report-style="simple"] .rpt3-header{background:#fff !important; border-bottom:1.5px solid #C9CED4;}
+  [data-report-style="simple"] .rpt2-header-right,
+  [data-report-style="simple"] .rpt2-header-left,
+  [data-report-style="simple"] .rpt3-header-right,
+  [data-report-style="simple"] .rpt3-header-left,
+  [data-report-style="simple"] .rpt2-logo-text,
+  [data-report-style="simple"] .rpt2-logo-dots{color:#1A1A22 !important; opacity:1;}
+  [data-report-style="simple"] .rpt2-logo-sub{color:#5A5A66 !important;}
+  [data-report-style="simple"] .rpt2-title-badge,
+  [data-report-style="simple"] .rpt3-title-bar{background:#fff !important; color:#1A1A22 !important; border:1.5px solid #C9CED4; box-shadow:none;}
 
-  .theme-lavender .shw-accent{background:linear-gradient(90deg,#8E7CC3,#B39DDB) !important;}
-  .theme-lavender .shw-title-box{background:#F3EFFB;}
-  .theme-lavender .shw-chip{background:#F3EFFB; color:#5B4B8A;}
-  .theme-lavender .shw-section-title{border-bottom-color:#E0D6F5;}
-
-  .theme-lavender-simple .shw-accent{background:#fff !important; height:4px; border-bottom:3px solid #B39DDB;}
-  .theme-lavender-simple .shw-title-box{background:#fff; border:1.5px solid #E0D6F5;}
-  .theme-lavender-simple .shw-chip{background:#fff; border:1px solid #E0D6F5; color:#5B4B8A;}
-  .theme-lavender-simple .shw-section-title{border-bottom-color:#E0D6F5;}
 
   /* ==== rpt2: قالب تقرير تنفيذ نشاط صفي (مطابق للمرجع) ==== */
   .rpt2-page{font-family:'Tajawal',sans-serif; direction:rtl;}
@@ -1488,11 +1491,8 @@ window.maeenAlert = function(message, tone){
           <div class="rep-subbody" id="repSubBody-style">
             <div class="rep-subbody-inner">
               <div class="rep-field-label">ستايل التقرير</div>
-              <div class="style-opt" data-k="simple" onclick="setRepStyle('simple')">بسيط (توفير حبر)<span class="style-opt-check"></span></div>
-              <div class="style-opt" data-k="original" onclick="setRepStyle('original')">الهوية البصرية الأصلية<span class="style-opt-check"></span></div>
-              <div class="style-opt" data-k="gradient" onclick="setRepStyle('gradient')">الهوية البصرية تدرج<span class="style-opt-check"></span></div>
-              <div class="style-opt" data-k="lavender" onclick="setRepStyle('lavender')">لافندر<span class="style-opt-check"></span></div>
-              <div class="style-opt" data-k="lavender-simple" onclick="setRepStyle('lavender-simple')">لافندر بسيط (توفير حبر)<span class="style-opt-check"></span></div>
+              <div class="style-opt" data-k="original" onclick="setRepStyle('original')">رسمي<span class="style-opt-check"></span></div>
+              <div class="style-opt" data-k="simple" onclick="setRepStyle('simple')">توفير حبر<span class="style-opt-check"></span></div>
 
               <div class="scale-row">
                 <div>
@@ -1579,6 +1579,7 @@ window.maeenAlert = function(message, tone){
     <div class="sgal-attach-item" onclick="sgalShowAddMenu()"><span>＋</span> إضافة شاهد</div>
     <div class="sgal-attach-item" id="sgalMenuOpen" onclick="sgalOpenCurrent()"><span>👁️</span> فتح الشاهد</div>
     <div class="sgal-attach-item is-danger" id="sgalMenuDelete" onclick="sgalDeleteCurrent()"><span>🗑️</span> حذف الشاهد</div>
+    <div class="sgal-attach-item" id="sgalMenuRenameSection" hidden onclick="sgalRenameSection()"><span>✏️</span> إعادة تسمية القسم</div>
     <div class="sgal-attach-item is-danger" id="sgalMenuDeleteSection" hidden onclick="sgalDeleteSection()"><span>✖️</span> حذف القسم</div>
   </div>
   <div class="sgal-menu-panel" id="sgalMenuAdd" hidden>
@@ -3498,6 +3499,29 @@ async function addCustomSub(catId){
   render();
 }
 
+async function renameCustomSub(catId, subId){
+  const cat = DATA.find(c => c.id === catId);
+  const sub = cat && cat.subs ? cat.subs.find(s => s.id === subId) : null;
+  if (!sub || !sub.custom) return;
+  const title = await window.maeenPrompt(`الاسم الجديد لقسم «${sub.title}»`, sub.title);
+  if (!title || title === sub.title) return;
+  if (cat.subs.some(s => s.id !== subId && s.title === title)) {
+    window.maeenAlert('يوجد قسم بهذا الاسم بالفعل.');
+    return;
+  }
+  sub.title = title;
+  const stored = (customSubs[catId] || []).find(s => s.id === subId);
+  if (stored) stored.title = title;
+  await persistCustomSubs();
+  // الشواهد مرتبطة بمعرّف القسم لا باسمه، فلا يتغيّر منها شيء
+  if (sgalCtx.catId === catId && sgalCtx.subId === subId) {
+    sgalCtx.title = title;
+    document.getElementById('sgalTitle').textContent = title;
+    document.getElementById('sgalMetaTitle').textContent = title;
+  }
+  render();
+}
+
 async function deleteCustomSub(catId, subId){
   const cat = DATA.find(c => c.id === catId);
   const sub = cat && cat.subs ? cat.subs.find(s => s.id === subId) : null;
@@ -4527,7 +4551,10 @@ function sgalSyncMenu(){
   const openItem = document.getElementById('sgalMenuOpen');
   const deleteItem = document.getElementById('sgalMenuDelete');
   const sectionItem = document.getElementById('sgalMenuDeleteSection');
-  if (sectionItem) sectionItem.hidden = !sgalIsCustomSection();   // الأقسام الأصلية لا تُحذف
+  const renameItem = document.getElementById('sgalMenuRenameSection');
+  const custom = sgalIsCustomSection();          // الأقسام الأصلية لا تُحذف ولا يُغيَّر اسمها
+  if (sectionItem) sectionItem.hidden = !custom;
+  if (renameItem) renameItem.hidden = !custom;
   if (deleteItem) deleteItem.hidden = !slide;
   if (!openItem) return;
   openItem.hidden = !slide || slide.kind === 'image' || slide.kind === 'note';
@@ -4570,6 +4597,11 @@ function sgalIsCustomSection(){
 function sgalDeleteSection(){
   toggleSgalMenu(false);
   deleteCustomSub(sgalCtx.catId, sgalCtx.subId);
+}
+
+function sgalRenameSection(){
+  toggleSgalMenu(false);
+  renameCustomSub(sgalCtx.catId, sgalCtx.subId);
 }
 
 async function sgalDeleteCurrent(){
@@ -5011,6 +5043,7 @@ async function loadRepData(){
     const res = await window.storage.get('portfolio-main-data');
     if(res && res.value) repData = {...repData, ...JSON.parse(res.value)};
   }catch(e){ /* no saved data yet */ }
+  migrateRepStyle();
   document.getElementById('repAdmin').value = repData.admin;
   document.getElementById('repSchool').value = repData.school;
   document.getElementById('repTeacher').value = repData.teacher;
@@ -5032,10 +5065,23 @@ function toggleRepSub(key){
   document.getElementById('repSubBody-'+key).classList.toggle('open', open);
   document.getElementById('repSubChev-'+key).style.transform = open ? 'rotate(180deg)' : 'rotate(0deg)';
 }
+/* بقي نمطان: «رسمي» و«توفير حبر». الأنماط الملغاة (تدرّج، لافندر، لافندر بسيط)
+   تُحوَّل إلى أقربها، فلا يجد المعلّم إعداده المحفوظ بلا خيار مطابق. */
+const REP_STYLE_ALIASES = { gradient:'original', lavender:'original', 'lavender-simple':'simple' };
+
+function migrateRepStyle(){
+  const alias = REP_STYLE_ALIASES[repData.style];
+  if (alias) repData.style = alias;
+  else if (repData.style !== 'simple') repData.style = 'original';
+  return !!alias;
+}
+
 function applyStyleActiveUI(){
   document.querySelectorAll('.style-opt').forEach(el=>{
     el.classList.toggle('active', el.getAttribute('data-k') === repData.style);
   });
+  // تُقرأ من CSS لتطبيق «توفير حبر» على صفحات التقارير كلها بلا لمس مولّداتها
+  document.documentElement.setAttribute('data-report-style', repData.style);
 }
 async function setRepStyle(key){
   repData.style = key;
@@ -11815,7 +11861,7 @@ body, .app{transition:background-color .18s ease, color .18s ease;}
 .rep-subhead-title{color:var(--m-ink); font:500 14.5px/1 var(--m-ui);}
 .rep-section-title{color:var(--m-ink); border-bottom-color:var(--m-line-soft);}
 .style-opt{background:var(--m-surface-2); color:var(--m-ink); border-radius:12px; font:500 14px/1.3 var(--m-ui);}
-.style-opt[data-k="simple"], .style-opt[data-k="lavender-simple"]{background:var(--m-surface-2); color:var(--m-muted);}
+.style-opt[data-k="simple"]{background:var(--m-surface-2); color:var(--m-muted);}
 .style-opt.active{border-color:var(--m-accent); box-shadow:0 0 0 2px var(--m-accent-soft);}
 .scale-row select{width:100%;}
 
