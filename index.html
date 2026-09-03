@@ -3602,30 +3602,6 @@ const BUILD_FN_MAP = {
   'workshop-run': buildWsrunPageHtml,
   'workshop-attend': buildWsattPageHtml,
 };
-function sendReportToPortfolio(rptKey, entryId, btnEl){
-  const entry = rptEntries(rptKey).find(e=> e.id === entryId);
-  if(!entry){ window.maeenAlert('تعذر العثور على التقرير.'); return; }
-  const target = PORTFOLIO_TARGET_MAP[rptKey];
-  if(!target){ window.maeenAlert('تعذر تحديد القسم المناسب لهذا التقرير.'); return; }
-  const cat = DATA.find(c=> c.id === target.catId);
-  const sub = cat && cat.subs ? cat.subs.find(s=> s.id === target.subId) : null;
-  const arr = getEntries(target.catId, target.subId);
-  arr.push({
-    id: Date.now(),
-    title: entry.title,
-    date: new Date().toLocaleDateString('ar-SA-u-ca-islamic'),
-    desc: 'مُضاف تلقائياً من القوالب',
-    reportRef: { rptKey, entryId: entry.id }
-  });
-  persist();
-  render();
-  if(btnEl){
-    const old = btnEl.textContent;
-    btnEl.textContent = '✓ أُضيف إلى: ' + (sub ? sub.title : cat.title);
-    btnEl.disabled = true;
-    setTimeout(()=>{ btnEl.textContent = old; btnEl.disabled = false; }, 2500);
-  }
-}
 
 function countFor(cat){
   if(cat.id === 'perf') return 'دليل توضيحي';
@@ -10807,42 +10783,39 @@ window.maeenInitApp = async function(){
     return section?.title || category?.title || 'ملف الإنجاز';
   }
 
-  const originalSendReport = window.sendReportToPortfolio;
-  if (typeof originalSendReport === 'function') {
-    window.sendReportToPortfolio = async function sendReportToPortfolioSafely(rptKey, entryId, button) {
-      const source = typeof rptEntries === 'function' ? rptEntries(rptKey).find(entry => entry.id === entryId) : null;
-      const target = typeof PORTFOLIO_TARGET_MAP === 'undefined' ? null : PORTFOLIO_TARGET_MAP[rptKey];
-      if (!source || !target) { reportToast('تعذر ربط التقرير بالقسم المناسب. أعد حفظ التقرير ثم حاول مرة أخرى.', 'error'); return; }
-      const destination = getEntries(target.catId, target.subId);
-      const existing = destination.find(entry => entry.reportRef?.rptKey === rptKey && String(entry.reportRef?.entryId) === String(source.id));
-      if (!existing) {
-        destination.unshift({
-          id: Date.now(),
-          title: source.title || 'تقرير من القوالب',
-          date: dateText(),
-          desc: 'تقرير محفوظ من القوالب',
-          reportRef: { rptKey, entryId: source.id },
-          reportSnapshot: clone(source)
-        });
+  window.sendReportToPortfolio = async function sendReportToPortfolioSafely(rptKey, entryId, button) {
+    const source = typeof rptEntries === 'function' ? rptEntries(rptKey).find(entry => entry.id === entryId) : null;
+    const target = typeof PORTFOLIO_TARGET_MAP === 'undefined' ? null : PORTFOLIO_TARGET_MAP[rptKey];
+    if (!source || !target) { reportToast('تعذر ربط التقرير بالقسم المناسب. أعد حفظ التقرير ثم حاول مرة أخرى.', 'error'); return; }
+    const destination = getEntries(target.catId, target.subId);
+    const existing = destination.find(entry => entry.reportRef?.rptKey === rptKey && String(entry.reportRef?.entryId) === String(source.id));
+    if (!existing) {
+      destination.unshift({
+        id: Date.now(),
+        title: source.title || 'تقرير من القوالب',
+        date: dateText(),
+        desc: 'تقرير محفوظ من القوالب',
+        reportRef: { rptKey, entryId: source.id },
+        reportSnapshot: clone(source)
+      });
+    }
+    try {
+      await Promise.all([persistRpt(), persist()]);
+      render();
+      window.maeenRefreshTrustStatus?.();
+      reportToast(`تم حفظ التقرير في ملف الإنجاز ضمن «${reportTargetTitle(target)}».`);
+      if (button) {
+        const originalLabel = button.dataset.maeenOriginalLabel || button.textContent;
+        button.dataset.maeenOriginalLabel = originalLabel;
+        button.textContent = `✓ محفوظ في: ${reportTargetTitle(target)}`;
+        button.disabled = true;
+        window.setTimeout(() => { button.textContent = originalLabel; button.disabled = false; }, 2800);
       }
-      try {
-        await Promise.all([persistRpt(), persist()]);
-        render();
-        window.maeenRefreshTrustStatus?.();
-        reportToast(`تم حفظ التقرير في ملف الإنجاز ضمن «${reportTargetTitle(target)}».`);
-        if (button) {
-          const originalLabel = button.dataset.maeenOriginalLabel || button.textContent;
-          button.dataset.maeenOriginalLabel = originalLabel;
-          button.textContent = `✓ محفوظ في: ${reportTargetTitle(target)}`;
-          button.disabled = true;
-          window.setTimeout(() => { button.textContent = originalLabel; button.disabled = false; }, 2800);
-        }
-      } catch (error) {
-        console.error(error);
-        reportToast('تعذر حفظ التقرير في ملف الإنجاز. حاول مرة أخرى.', 'error');
-      }
-    };
-  }
+    } catch (error) {
+      console.error(error);
+      reportToast('تعذر حفظ التقرير في ملف الإنجاز. حاول مرة أخرى.', 'error');
+    }
+  };
 
   const originalPreviewLinked = window.previewLinkedReport;
   if (typeof originalPreviewLinked === 'function') {
