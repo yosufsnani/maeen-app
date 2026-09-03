@@ -476,6 +476,18 @@
   .evphoto-frame img{width:100%; display:block; max-height:640px; object-fit:contain; background:#fafafa;}
   .evphoto-caption{text-align:center; font-size:12.5px; font-weight:700; color:var(--ink); margin-top:12px;}
   .evphoto-subcaption{text-align:center; font-size:11px; color:var(--dim); margin-top:2px;}
+  /* شبكة صور القسم الواحد: الارتفاعات مضبوطة كي تسع الصفحة أربع صور مع شريط العنوان */
+  .evgrid{display:grid; gap:16px; margin-top:12px;}
+  .evgrid.is-single, .evgrid.is-double{grid-template-columns:1fr;}
+  .evgrid.is-quad{grid-template-columns:1fr 1fr;}
+  .evgrid-item{margin:0;}
+  .evgrid-frame{border:1px solid #E4E7EC; border-radius:14px; overflow:hidden; box-shadow:0 2px 8px rgba(20,20,30,0.07); background:#fafafa;}
+  .evgrid-frame img{width:100%; display:block; object-fit:contain; background:#fafafa;}
+  .evgrid.is-single .evgrid-frame img{max-height:620px;}
+  .evgrid.is-double .evgrid-frame img{max-height:330px;}
+  .evgrid.is-quad .evgrid-frame img{max-height:300px;}
+  .evgrid-caption{text-align:center; font-size:11.5px; font-weight:700; color:var(--ink); margin-top:7px;}
+  .evgrid-caption span{display:block; margin-top:2px; font-size:10px; font-weight:400; color:var(--dim);}
   .evtext-page{position:relative; page-break-before:always; padding:60px 40px; text-align:center;}
   .evtext-title{font-size:21px; font-weight:900; color:var(--ink); margin-top:70px;}
   .evtext-date{font-size:13px; color:var(--dim); margin-top:10px;}
@@ -5179,13 +5191,49 @@ function buildDividerPageHtml(title){
     </div>
   `;
 }
-function buildEvidencePhotoPageHtml(sectionTitle, entry, imgSrc){
+/* عناوين تُولَّد تلقائياً عند إرفاق صورة مباشرة، ولا تحمل أي معنى للقارئ،
+   فلا تُطبع تحت الصورة في مستند رسمي — يُكتفى بشريط القسم أعلى الصفحة */
+const AUTO_EVIDENCE_TITLES = ['صور مرفقة', 'صورة مرفقة'];
+/* التواريخ محفوظة بصيغتين: ISO من الإرفاق المباشر، وهجرية جاهزة من القوالب */
+function formatEvidenceDate(value){
+  const raw = String(value || '').trim();
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+  try{ return new Date(raw + 'T00:00:00').toLocaleDateString('ar-SA-u-ca-islamic'); }
+  catch(e){ return raw; }
+}
+function evidenceCaptionParts(entry){
+  const title = String(entry.title || '').trim();
+  if(!title || AUTO_EVIDENCE_TITLES.includes(title)) return null;
+  return { title, date: formatEvidenceDate(entry.date) };
+}
+function buildEvidencePhotoPageHtml(sectionTitle, entry, imgSrc, showCaption){
+  const cap = showCaption === false ? null : evidenceCaptionParts(entry);
   return `
     <div class="evphoto-page">
       <div class="evphoto-ribbon-wrap"><div class="evphoto-ribbon">${escapeHtml(sectionTitle)}</div></div>
       <div class="evphoto-frame"><img src="${imgSrc}"></div>
-      <div class="evphoto-caption">${escapeHtml(entry.title)}</div>
-      ${entry.date ? `<div class="evphoto-subcaption">${escapeHtml(entry.date)}</div>` : ''}
+      ${cap ? `<div class="evphoto-caption">${escapeHtml(cap.title)}</div>` : ''}
+      ${cap && cap.date ? `<div class="evphoto-subcaption">${escapeHtml(cap.date)}</div>` : ''}
+    </div>
+  `;
+}
+/* شواهد الصور داخل القسم الواحد تُجمع في صفحة واحدة (حتى أربع صور) بدل صفحة لكل صورة */
+function buildEvidencePhotoGridPageHtml(sectionTitle, photos){
+  const layout = photos.length === 1 ? 'is-single' : photos.length === 2 ? 'is-double' : 'is-quad';
+  return `
+    <div class="evphoto-page">
+      <div class="evphoto-ribbon-wrap"><div class="evphoto-ribbon">${escapeHtml(sectionTitle)}</div></div>
+      <div class="evgrid ${layout}">
+        ${photos.map(p=>{
+          const cap = evidenceCaptionParts(p.entry);
+          return `
+            <figure class="evgrid-item">
+              <div class="evgrid-frame"><img src="${p.src}"></div>
+              ${cap ? `<figcaption class="evgrid-caption">${escapeHtml(cap.title)}${cap.date ? `<span>${escapeHtml(cap.date)}</span>` : ''}</figcaption>` : ''}
+            </figure>
+          `;
+        }).join('')}
+      </div>
     </div>
   `;
 }
@@ -5265,7 +5313,21 @@ async function doPrint(){
 
     let catHtml = buildDividerPageHtml(cat.title);
     let bodyPages = '';
+    // الصور تُجمَّع أولاً ثم تُفرَغ في صفحات شبكية؛ وأي شاهد غير صوري يُفرغ ما تجمّع
+    // قبله كي يبقى ترتيب الشواهد كما أدخله المعلم
+    let photoBuffer = [];
+    function flushPhotos(sectionTitle){
+      for(let i = 0; i < photoBuffer.length; i += 4){
+        bodyPages += buildEvidencePhotoGridPageHtml(sectionTitle, photoBuffer.slice(i, i + 4));
+      }
+      photoBuffer = [];
+    }
     function collectEntry(sectionTitle, e){
+      if(e.images && e.images.length){
+        e.images.forEach(src=> photoBuffer.push({ src, entry: e }));
+        return;
+      }
+      flushPhotos(sectionTitle);
       if(e.reportRef){
         const buildFn = BUILD_FN_MAP[e.reportRef.rptKey];
         const src = buildFn ? rptEntries(e.reportRef.rptKey).find(x=> x.id === e.reportRef.entryId) : null;
@@ -5274,16 +5336,12 @@ async function doPrint(){
         }
         return;
       }
-      if(e.images && e.images.length){
-        e.images.forEach(src=>{
-          bodyPages += buildEvidencePhotoPageHtml(sectionTitle, e, src);
-        });
-        return;
-      }
       if(e.attachment){
         const pdfPages = pdfPagesByEntry.get(e.id);
         if(pdfPages && pdfPages.length){
-          pdfPages.forEach(src=>{ bodyPages += buildEvidencePhotoPageHtml(sectionTitle, e, src); });
+          // صفحات ملف PDF تبقى صفحة لكل صفحة (مستند كامل لا شاهد مصوّر)،
+          // ويُكتفى باسم الملف تحت أول صفحة منه بدل تكراره تحت كل صفحة
+          pdfPages.forEach((src, i)=>{ bodyPages += buildEvidencePhotoPageHtml(sectionTitle, e, src, i === 0); });
           return;
         }
         const excelTable = excelTableByEntry.get(e.id);
@@ -5301,10 +5359,12 @@ async function doPrint(){
         if(entries.length === 0) return;
         const sectionTitle = `${cat.title} — ${s.title}`;
         entries.forEach(e=> collectEntry(sectionTitle, e));
+        flushPhotos(sectionTitle);
       });
     } else {
       const entries = getEntries(cat.id);
       entries.forEach(e=> collectEntry(cat.title, e));
+      flushPhotos(cat.title);
     }
     catHtml += bodyPages;
     pages += catHtml;
