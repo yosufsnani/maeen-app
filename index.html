@@ -3322,6 +3322,7 @@ const DATA = [
     {id:'supervision', title:'سجل الإشراف', cls:'c-yellow'},
     {id:'duty', title:'سجل المناوبة', cls:'c-pink'},
     {id:'waiting', title:'سجل جدول الانتظار', cls:'c-blue'},
+    {id:'schoolactivities', title:'تقارير الأنشطة المدرسية', cls:'c-green'},
   ]},
   {id:'community', title:'التفاعل مع المجتمع المهني', color:'#1C3D6E', subs:[
     {id:'visits', title:'سجل تبادل الزيارات', cls:'c-green'},
@@ -3335,14 +3336,15 @@ const DATA = [
     {id:'meeting', title:'تقرير اجتماع الأسرة مع المعلم', cls:'c-pink'},
   ]},
   {id:'strategies', title:'التنويع في استراتيجيات التدريس', color:'#8BC34A', subs:[
-    {id:'portfolio', title:'ملف إنجاز المعلم', cls:'c-green'},
     {id:'stratreport', title:'تقرير عن تطبيق استراتيجية', cls:'c-yellow'},
+    {id:'activityreports', title:'تقارير الأنشطة الصفية', cls:'c-green'},
   ]},
   {id:'results', title:'تحسين نتائج المتعلمين', color:'#E8447A', subs:[
     {id:'followup', title:'كشف متابعة الطلاب', cls:'c-green'},
     {id:'examanalysis', title:'تحليل نتائج الاختبار', cls:'c-yellow'},
     {id:'honor', title:'صور من تكريم الطلاب', cls:'c-pink'},
     {id:'prepost', title:'نتائج الاختبار القبلي والبعدي', cls:'c-blue'},
+    {id:'enrichmentplans', title:'الخطط الإثرائية', cls:'c-green'},
   ]},
   {id:'plan', title:'إعداد وتنفيذ خطة التعلم', color:'#E8743C', subs:[
     {id:'curriculumplan', title:'خطة توزيع المنهج', cls:'c-green'},
@@ -3385,8 +3387,10 @@ const SUB_HINTS = {
   weak: 'أضف نموذج إشعار تم إرساله لولي أمر طالب ضعيف تحصيلياً.',
   weekly: 'أرفق نسخة من الخطة الأسبوعية المرسلة لأولياء الأمور.',
   meeting: 'أضف تقرير أو محضر اجتماع مع أسرة الطالب.',
-  portfolio: 'أرفق صورة أو رابط ملف إنجاز المعلم الخاص بك.',
+  schoolactivities: 'أرفق تقرير إذاعة مدرسية أو نشاط لا صفي (يمكن توليده من القوالب).',
   stratreport: 'أضف تقرير تطبيق استراتيجية تدريس (يمكن توليده من القوالب).',
+  activityreports: 'أرفق تقرير تنفيذ نشاط صفي (يمكن توليده من القوالب).',
+  enrichmentplans: 'أضف خطة إثرائية لصف أو لطالب متميز (يمكن توليدها من القوالب).',
   followup: 'أرفق كشف متابعة مستوى الطلاب وتحصيلهم.',
   examanalysis: 'أضف تقرير تحليل نتائج اختبار (يمكن توليده من القوالب).',
   honor: 'أرفق صور من حفل أو لحظة تكريم الطلاب المتميزين.',
@@ -3422,6 +3426,11 @@ async function loadState(){
 const STATE_MIGRATIONS = [
   // «خطة توزيع المنهج» تتبع عنصر «إعداد وتنفيذ خطة التعلم» لا «أداء الواجبات الوظيفية»
   { from: ['duties', 'curriculum'], to: ['plan', 'curriculumplan'] },
+  /* «ملف إنجاز المعلم» أُزيل — كان قسماً بلا معنى (التطبيق نفسه هو ملف الإنجاز)
+     تُجمَع فيه تقارير الأنشطة الثلاثة. شواهده تنتقل إلى «تقارير الأنشطة الصفية»
+     داخل العنصر نفسه، فلا يغادر أي شاهد عنصره؛ ونقل ما يخص الإذاعة أو النشاط
+     اللاصفي إلى «تقارير الأنشطة المدرسية» متروك للمعلّم. */
+  { from: ['strategies', 'portfolio'], to: ['strategies', 'activityreports'] },
 ];
 
 function migrateState(){
@@ -3523,9 +3532,9 @@ function getEntries(catId, subId){
 
 // خريطة توجيه تقارير القوالب الجاهزة إلى القسم المناسب في ملف الإنجاز
 const PORTFOLIO_TARGET_MAP = {
-  'classroom-activity': {catId:'strategies', subId:'portfolio'},
-  'school-radio': {catId:'strategies', subId:'portfolio'},
-  'extra-activity': {catId:'strategies', subId:'portfolio'},
+  'classroom-activity': {catId:'strategies', subId:'activityreports'},
+  'school-radio': {catId:'duties', subId:'schoolactivities'},
+  'extra-activity': {catId:'duties', subId:'schoolactivities'},
   'waiting-period': {catId:'duties', subId:'waiting'},
   'applied-lesson': {catId:'community', subId:'applied'},
   'visit-log': {catId:'community', subId:'visits'},
@@ -3535,8 +3544,8 @@ const PORTFOLIO_TARGET_MAP = {
   'tech-tool-report': {catId:'tech', subId:'techreport'},
   'classroom-strategy': {catId:'classroom', subId:'classmanagement'},
   'remedial-plan': {catId:'analysis', subId:'gaptreatment'},
-  'enrichment-plan': {catId:'plan', subId:'lessonmodel'},
-  'enrichment-plan-individual': {catId:'plan', subId:'lessonmodel'},
+  'enrichment-plan': {catId:'results', subId:'enrichmentplans'},
+  'enrichment-plan-individual': {catId:'results', subId:'enrichmentplans'},
   'test-results': {catId:'results', subId:'prepost'},
   'test-analysis': {catId:'analysis', subId:'resultsanalysis'},
   'student-honor': {catId:'results', subId:'honor'},
@@ -3801,6 +3810,8 @@ const TEMPLATES_EVAL_DATA = [
   {catId:'plan', t:'إعداد وتنفيذ خطة التعلم', cls:'c-yellow'},
   {catId:'tech', t:'توظيف تقنيات ووسائل التعلم المناسبة', cls:'c-pink'},
   {catId:'environment', t:'تهيئة البيئة التعليمية', cls:'c-blue'},
+  {catId:'classroom', t:'الإدارة الصفية', cls:'c-green'},
+  {catId:'analysis', t:'تحليل نتائج المتعلمين وتشخيص مستوياتهم', cls:'c-yellow'},
 ];
 function toggleEvalCard(){
   document.getElementById('evalCard').classList.toggle('open');
@@ -3820,7 +3831,6 @@ function renderTemplatesEval(){
 // قوالب التقارير الفرعية لكل عنصر من عناصر التقييم (تُضاف تباعاً)
 const EVAL_SUBS = {
   duties: [
-    {id:'classroom-activity', t:'تقرير تنفيذ نشاط صفي', cls:'c-green'},
     {id:'school-radio', t:'تقرير تنفيذ إذاعة مدرسية', cls:'c-yellow'},
     {id:'extra-activity', t:'تقرير تنفيذ نشاط لا صفي', cls:'c-pink'},
     {id:'waiting-period', t:'تقرير تنفيذ حصة انتظار', cls:'c-blue'},
@@ -3837,6 +3847,7 @@ const EVAL_SUBS = {
   ],
   strategies: [
     {id:'strategy-report', t:'تقرير تطبيق استراتيجية', cls:'c-blue'},
+    {id:'classroom-activity', t:'تقرير تنفيذ نشاط صفي', cls:'c-green'},
   ],
   plan: [
     {id:'curriculum-plan', t:'خطة توزيع المنهج', cls:'c-green'},
@@ -3855,15 +3866,19 @@ const EVAL_SUBS = {
     {id:'tech-madrasati', t:'تقرير استخدام منصة مدرستي (Madrasati)', cls:'c-pink'},
   ],
   environment: [
-    {id:'classroom-environment', t:'البيئة الصفية', cls:'c-green'},
     {id:'learning-styles-report', t:'تقرير تصنيف الطلاب وفق أنماط التعلم', cls:'c-yellow'},
   ],
-  results: [
+  classroom: [
+    {id:'classroom-environment', t:'البيئة الصفية', cls:'c-green'},
+  ],
+  analysis: [
+    {id:'test-analysis', t:'تحليل نتائج مادة لصف واحد', cls:'c-green'},
     {id:'remedial-plan', t:'الخطط العلاجية', cls:'c-yellow'},
+  ],
+  results: [
     {id:'enrichment-plan', t:'الخطط الإثرائية', cls:'c-green'},
     {id:'enrichment-plan-individual', t:'خطة إثرائية لطالب متميز', cls:'c-pink'},
     {id:'test-results', t:'نتائج الاختبارات', cls:'c-pink'},
-    {id:'test-analysis', t:'تحليل نتائج مادة لصف واحد', cls:'c-green'},
     {id:'student-honor', t:'تكريم الطلاب', cls:'c-blue'},
     {id:'appreciation-certificate', t:'مولد شهادات شكر وتقدير', cls:'c-pink'},
   ],
