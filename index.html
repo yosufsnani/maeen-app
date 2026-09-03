@@ -263,10 +263,8 @@
     font-weight:700; font-size:14.5px; margin-bottom:10px; cursor:pointer;
     border:2px solid transparent; color:var(--ink); background:#F1F1F5;
   }
-  .style-opt[data-k="simple"], .style-opt[data-k="lavender-simple"]{background:#F7F7FA; color:var(--dim);}
+  .style-opt[data-k="simple"]{background:#F7F7FA; color:var(--dim); border-color:#DCDCE4;}
   .style-opt[data-k="original"]{background:#1C3D6E; color:#fff;}
-  .style-opt[data-k="gradient"]{background:linear-gradient(90deg,#2F80ED,#8BC34A); color:#fff;}
-  .style-opt[data-k="lavender"]{background:linear-gradient(90deg,#8E7CC3,#B39DDB); color:#fff;}
   .style-opt.active{border-color:var(--blue-cta); box-shadow:0 0 0 2px rgba(47,128,237,0.25);}
   .style-opt-check{display:inline-block; margin-inline-start:6px;}
   .style-opt.active .style-opt-check::after{content:"✓";}
@@ -371,18 +369,23 @@
   .theme-simple .shw-chip{background:#fff; border:1px solid #E4E4EA;}
   .theme-simple .shw-section-title{border-bottom-color:#D5D5DC;}
 
-  .theme-gradient .shw-accent{background:linear-gradient(90deg,#2F80ED,#8BC34A) !important;}
-  .theme-gradient .shw-title-box{background:linear-gradient(135deg,#EAF3FF,#EFFAF0);}
+  /* «توفير حبر» يشمل صفحات التقارير كلها لا صفحة الشاهد وحدها:
+     يُفرَّغ كل ما يُملأ باللون، ويبقى التخطيط والحدود كما هي. */
+  [data-report-style="simple"] .rpt2-topbar,
+  [data-report-style="simple"] .rpt3-topbar{background:#fff !important; border-bottom:2px solid #C9CED4;}
+  [data-report-style="simple"] .rpt3-footer{background:#fff !important; border-top:2px solid #C9CED4;}
+  [data-report-style="simple"] .rpt2-header,
+  [data-report-style="simple"] .rpt3-header{background:#fff !important; border-bottom:1.5px solid #C9CED4;}
+  [data-report-style="simple"] .rpt2-header-right,
+  [data-report-style="simple"] .rpt2-header-left,
+  [data-report-style="simple"] .rpt3-header-right,
+  [data-report-style="simple"] .rpt3-header-left,
+  [data-report-style="simple"] .rpt2-logo-text,
+  [data-report-style="simple"] .rpt2-logo-dots{color:#1A1A22 !important; opacity:1;}
+  [data-report-style="simple"] .rpt2-logo-sub{color:#5A5A66 !important;}
+  [data-report-style="simple"] .rpt2-title-badge,
+  [data-report-style="simple"] .rpt3-title-bar{background:#fff !important; color:#1A1A22 !important; border:1.5px solid #C9CED4; box-shadow:none;}
 
-  .theme-lavender .shw-accent{background:linear-gradient(90deg,#8E7CC3,#B39DDB) !important;}
-  .theme-lavender .shw-title-box{background:#F3EFFB;}
-  .theme-lavender .shw-chip{background:#F3EFFB; color:#5B4B8A;}
-  .theme-lavender .shw-section-title{border-bottom-color:#E0D6F5;}
-
-  .theme-lavender-simple .shw-accent{background:#fff !important; height:4px; border-bottom:3px solid #B39DDB;}
-  .theme-lavender-simple .shw-title-box{background:#fff; border:1.5px solid #E0D6F5;}
-  .theme-lavender-simple .shw-chip{background:#fff; border:1px solid #E0D6F5; color:#5B4B8A;}
-  .theme-lavender-simple .shw-section-title{border-bottom-color:#E0D6F5;}
 
   /* ==== rpt2: قالب تقرير تنفيذ نشاط صفي (مطابق للمرجع) ==== */
   .rpt2-page{font-family:'Tajawal',sans-serif; direction:rtl;}
@@ -1391,12 +1394,6 @@ window.maeenAlert = function(message, tone){
       </div>
 
       <div class="dash-card" style="text-align:right;">
-        <div class="dash-title">تقدّم التوثيق حسب المعيار</div>
-        <div class="dash-desc">نسبة اكتمال الشواهد لكل معيار (الحد الأقصى 4 شواهد لكل معيار)</div>
-        <svg id="radarChart" viewBox="0 0 300 300" style="width:100%; max-width:300px; margin:0 auto; display:block;"></svg>
-      </div>
-
-      <div class="dash-card" style="text-align:right;">
         <div class="dash-title">عدد الشواهد مقابل الحد الأقصى</div>
         <div class="dash-desc">مقارنة الشواهد المضافة بالحد المسموح (4) لكل معيار</div>
         <div class="bar-row" id="barChart"></div>
@@ -1494,11 +1491,8 @@ window.maeenAlert = function(message, tone){
           <div class="rep-subbody" id="repSubBody-style">
             <div class="rep-subbody-inner">
               <div class="rep-field-label">ستايل التقرير</div>
-              <div class="style-opt" data-k="simple" onclick="setRepStyle('simple')">بسيط (توفير حبر)<span class="style-opt-check"></span></div>
-              <div class="style-opt" data-k="original" onclick="setRepStyle('original')">الهوية البصرية الأصلية<span class="style-opt-check"></span></div>
-              <div class="style-opt" data-k="gradient" onclick="setRepStyle('gradient')">الهوية البصرية تدرج<span class="style-opt-check"></span></div>
-              <div class="style-opt" data-k="lavender" onclick="setRepStyle('lavender')">لافندر<span class="style-opt-check"></span></div>
-              <div class="style-opt" data-k="lavender-simple" onclick="setRepStyle('lavender-simple')">لافندر بسيط (توفير حبر)<span class="style-opt-check"></span></div>
+              <div class="style-opt" data-k="original" onclick="setRepStyle('original')">رسمي<span class="style-opt-check"></span></div>
+              <div class="style-opt" data-k="simple" onclick="setRepStyle('simple')">توفير حبر<span class="style-opt-check"></span></div>
 
               <div class="scale-row">
                 <div>
@@ -1585,6 +1579,7 @@ window.maeenAlert = function(message, tone){
     <div class="sgal-attach-item" onclick="sgalShowAddMenu()"><span>＋</span> إضافة شاهد</div>
     <div class="sgal-attach-item" id="sgalMenuOpen" onclick="sgalOpenCurrent()"><span>👁️</span> فتح الشاهد</div>
     <div class="sgal-attach-item is-danger" id="sgalMenuDelete" onclick="sgalDeleteCurrent()"><span>🗑️</span> حذف الشاهد</div>
+    <div class="sgal-attach-item" id="sgalMenuRenameSection" hidden onclick="sgalRenameSection()"><span>✏️</span> إعادة تسمية القسم</div>
     <div class="sgal-attach-item is-danger" id="sgalMenuDeleteSection" hidden onclick="sgalDeleteSection()"><span>✖️</span> حذف القسم</div>
   </div>
   <div class="sgal-menu-panel" id="sgalMenuAdd" hidden>
@@ -3327,8 +3322,8 @@ const DATA = [
     {id:'attendance', title:'سجل الحضور', cls:'c-yellow'},
     {id:'supervision', title:'سجل الإشراف', cls:'c-yellow'},
     {id:'duty', title:'سجل المناوبة', cls:'c-pink'},
-    {id:'curriculum', title:'خطة توزيع المنهج', cls:'c-blue'},
     {id:'waiting', title:'سجل جدول الانتظار', cls:'c-blue'},
+    {id:'schoolactivities', title:'تقارير الأنشطة المدرسية', cls:'c-green'},
   ]},
   {id:'community', title:'التفاعل مع المجتمع المهني', color:'#1C3D6E', subs:[
     {id:'visits', title:'سجل تبادل الزيارات', cls:'c-green'},
@@ -3342,14 +3337,15 @@ const DATA = [
     {id:'meeting', title:'تقرير اجتماع الأسرة مع المعلم', cls:'c-pink'},
   ]},
   {id:'strategies', title:'التنويع في استراتيجيات التدريس', color:'#8BC34A', subs:[
-    {id:'portfolio', title:'ملف إنجاز المعلم', cls:'c-green'},
     {id:'stratreport', title:'تقرير عن تطبيق استراتيجية', cls:'c-yellow'},
+    {id:'activityreports', title:'تقارير الأنشطة الصفية', cls:'c-green'},
   ]},
   {id:'results', title:'تحسين نتائج المتعلمين', color:'#E8447A', subs:[
     {id:'followup', title:'كشف متابعة الطلاب', cls:'c-green'},
     {id:'examanalysis', title:'تحليل نتائج الاختبار', cls:'c-yellow'},
     {id:'honor', title:'صور من تكريم الطلاب', cls:'c-pink'},
     {id:'prepost', title:'نتائج الاختبار القبلي والبعدي', cls:'c-blue'},
+    {id:'enrichmentplans', title:'الخطط الإثرائية', cls:'c-green'},
   ]},
   {id:'plan', title:'إعداد وتنفيذ خطة التعلم', color:'#E8743C', subs:[
     {id:'curriculumplan', title:'خطة توزيع المنهج', cls:'c-green'},
@@ -3384,7 +3380,6 @@ const SUB_HINTS = {
   attendance: 'أرفق صورة أو نسخة من سجل حضور وغياب الطلاب.',
   supervision: 'أضف صورة من سجل الإشراف اليومي على الطلاب (الطابور، الفسحة...).',
   duty: 'أرفق صورة أو نسخة من سجل جدول المناوبة المدرسية.',
-  curriculum: 'أضف نسخة من خطة توزيع المنهج المعتمدة لهذا الفصل الدراسي.',
   waiting: 'أرفق صورة أو نسخة من سجل جدول حصص الانتظار.',
   visits: 'أضف تقرير أو صورة توثق تبادل الزيارات الصفية مع زميل/ة.',
   applied: 'أرفق تقرير تنفيذ درس تطبيقي حضره مشرف أو زملاء.',
@@ -3393,8 +3388,10 @@ const SUB_HINTS = {
   weak: 'أضف نموذج إشعار تم إرساله لولي أمر طالب ضعيف تحصيلياً.',
   weekly: 'أرفق نسخة من الخطة الأسبوعية المرسلة لأولياء الأمور.',
   meeting: 'أضف تقرير أو محضر اجتماع مع أسرة الطالب.',
-  portfolio: 'أرفق صورة أو رابط ملف إنجاز المعلم الخاص بك.',
+  schoolactivities: 'أرفق تقرير إذاعة مدرسية أو نشاط لا صفي (يمكن توليده من القوالب).',
   stratreport: 'أضف تقرير تطبيق استراتيجية تدريس (يمكن توليده من القوالب).',
+  activityreports: 'أرفق تقرير تنفيذ نشاط صفي (يمكن توليده من القوالب).',
+  enrichmentplans: 'أضف خطة إثرائية لصف أو لطالب متميز (يمكن توليدها من القوالب).',
   followup: 'أرفق كشف متابعة مستوى الطلاب وتحصيلهم.',
   examanalysis: 'أضف تقرير تحليل نتائج اختبار (يمكن توليده من القوالب).',
   honor: 'أرفق صور من حفل أو لحظة تكريم الطلاب المتميزين.',
@@ -3421,7 +3418,38 @@ async function loadState(){
     const res = await window.storage.get('portfolio-kushoof-style');
     if(res && res.value) state = JSON.parse(res.value);
   }catch(e){ state = {}; }
+  if (migrateState()) persist();
   render();
+}
+
+/* ترحيل الشواهد المحفوظة سابقاً حين ينتقل قسم من عنصر إلى عنصر آخر.
+   كل خطوة تُنفَّذ مرة واحدة: بعد النقل يُحذف المصدر فلا تتكرر. */
+const STATE_MIGRATIONS = [
+  // «خطة توزيع المنهج» تتبع عنصر «إعداد وتنفيذ خطة التعلم» لا «أداء الواجبات الوظيفية»
+  { from: ['duties', 'curriculum'], to: ['plan', 'curriculumplan'] },
+  /* «ملف إنجاز المعلم» أُزيل — كان قسماً بلا معنى (التطبيق نفسه هو ملف الإنجاز)
+     تُجمَع فيه تقارير الأنشطة الثلاثة. شواهده تنتقل إلى «تقارير الأنشطة الصفية»
+     داخل العنصر نفسه، فلا يغادر أي شاهد عنصره؛ ونقل ما يخص الإذاعة أو النشاط
+     اللاصفي إلى «تقارير الأنشطة المدرسية» متروك للمعلّم. */
+  { from: ['strategies', 'portfolio'], to: ['strategies', 'activityreports'] },
+];
+
+function migrateState(){
+  let changed = false;
+  STATE_MIGRATIONS.forEach(({ from, to }) => {
+    const [fromCat, fromSub] = from;
+    const [toCat, toSub] = to;
+    const moved = state[fromCat] && state[fromCat][fromSub];
+    if (!Array.isArray(moved)) return;
+    delete state[fromCat][fromSub];
+    changed = true;
+    if (!moved.length) return;
+    if (!state[toCat]) state[toCat] = {};
+    if (!Array.isArray(state[toCat][toSub])) state[toCat][toSub] = [];
+    const seen = new Set(state[toCat][toSub].map(entry => entry.id));
+    moved.forEach(entry => { if (!seen.has(entry.id)) state[toCat][toSub].push(entry); });
+  });
+  return changed;
 }
 /* ===== أقسام يضيفها المعلّم بنفسه =====
    تُحفظ منفصلة عن الشواهد، ثم تُدمج في DATA عند الإقلاع،
@@ -3471,6 +3499,29 @@ async function addCustomSub(catId){
   render();
 }
 
+async function renameCustomSub(catId, subId){
+  const cat = DATA.find(c => c.id === catId);
+  const sub = cat && cat.subs ? cat.subs.find(s => s.id === subId) : null;
+  if (!sub || !sub.custom) return;
+  const title = await window.maeenPrompt(`الاسم الجديد لقسم «${sub.title}»`, sub.title);
+  if (!title || title === sub.title) return;
+  if (cat.subs.some(s => s.id !== subId && s.title === title)) {
+    window.maeenAlert('يوجد قسم بهذا الاسم بالفعل.');
+    return;
+  }
+  sub.title = title;
+  const stored = (customSubs[catId] || []).find(s => s.id === subId);
+  if (stored) stored.title = title;
+  await persistCustomSubs();
+  // الشواهد مرتبطة بمعرّف القسم لا باسمه، فلا يتغيّر منها شيء
+  if (sgalCtx.catId === catId && sgalCtx.subId === subId) {
+    sgalCtx.title = title;
+    document.getElementById('sgalTitle').textContent = title;
+    document.getElementById('sgalMetaTitle').textContent = title;
+  }
+  render();
+}
+
 async function deleteCustomSub(catId, subId){
   const cat = DATA.find(c => c.id === catId);
   const sub = cat && cat.subs ? cat.subs.find(s => s.id === subId) : null;
@@ -3505,9 +3556,9 @@ function getEntries(catId, subId){
 
 // خريطة توجيه تقارير القوالب الجاهزة إلى القسم المناسب في ملف الإنجاز
 const PORTFOLIO_TARGET_MAP = {
-  'classroom-activity': {catId:'strategies', subId:'portfolio'},
-  'school-radio': {catId:'strategies', subId:'portfolio'},
-  'extra-activity': {catId:'strategies', subId:'portfolio'},
+  'classroom-activity': {catId:'strategies', subId:'activityreports'},
+  'school-radio': {catId:'duties', subId:'schoolactivities'},
+  'extra-activity': {catId:'duties', subId:'schoolactivities'},
   'waiting-period': {catId:'duties', subId:'waiting'},
   'applied-lesson': {catId:'community', subId:'applied'},
   'visit-log': {catId:'community', subId:'visits'},
@@ -3517,13 +3568,13 @@ const PORTFOLIO_TARGET_MAP = {
   'tech-tool-report': {catId:'tech', subId:'techreport'},
   'classroom-strategy': {catId:'classroom', subId:'classmanagement'},
   'remedial-plan': {catId:'analysis', subId:'gaptreatment'},
-  'enrichment-plan': {catId:'plan', subId:'lessonmodel'},
-  'enrichment-plan-individual': {catId:'plan', subId:'lessonmodel'},
+  'enrichment-plan': {catId:'results', subId:'enrichmentplans'},
+  'enrichment-plan-individual': {catId:'results', subId:'enrichmentplans'},
   'test-results': {catId:'results', subId:'prepost'},
   'test-analysis': {catId:'analysis', subId:'resultsanalysis'},
   'student-honor': {catId:'results', subId:'honor'},
   'appreciation-certificate': {catId:'results', subId:'honor'},
-  'curriculum-plan': {catId:'duties', subId:'curriculum'},
+  'curriculum-plan': {catId:'plan', subId:'curriculumplan'},
   'workshop-run': {catId:'community', subId:'certs'},
   'workshop-attend': {catId:'community', subId:'certs'},
 };
@@ -3780,8 +3831,11 @@ const TEMPLATES_EVAL_DATA = [
   {catId:'parents', t:'التفاعل مع أولياء الأمور', cls:'c-pink'},
   {catId:'strategies', t:'التنويع في استراتيجيات التدريس', cls:'c-blue'},
   {catId:'results', t:'تحسين نتائج المتعلمين', cls:'c-green'},
+  {catId:'plan', t:'إعداد وتنفيذ خطة التعلم', cls:'c-yellow'},
   {catId:'tech', t:'توظيف تقنيات ووسائل التعلم المناسبة', cls:'c-pink'},
   {catId:'environment', t:'تهيئة البيئة التعليمية', cls:'c-blue'},
+  {catId:'classroom', t:'الإدارة الصفية', cls:'c-green'},
+  {catId:'analysis', t:'تحليل نتائج المتعلمين وتشخيص مستوياتهم', cls:'c-yellow'},
 ];
 function toggleEvalCard(){
   document.getElementById('evalCard').classList.toggle('open');
@@ -3801,7 +3855,6 @@ function renderTemplatesEval(){
 // قوالب التقارير الفرعية لكل عنصر من عناصر التقييم (تُضاف تباعاً)
 const EVAL_SUBS = {
   duties: [
-    {id:'classroom-activity', t:'تقرير تنفيذ نشاط صفي', cls:'c-green'},
     {id:'school-radio', t:'تقرير تنفيذ إذاعة مدرسية', cls:'c-yellow'},
     {id:'extra-activity', t:'تقرير تنفيذ نشاط لا صفي', cls:'c-pink'},
     {id:'waiting-period', t:'تقرير تنفيذ حصة انتظار', cls:'c-blue'},
@@ -3818,6 +3871,10 @@ const EVAL_SUBS = {
   ],
   strategies: [
     {id:'strategy-report', t:'تقرير تطبيق استراتيجية', cls:'c-blue'},
+    {id:'classroom-activity', t:'تقرير تنفيذ نشاط صفي', cls:'c-green'},
+  ],
+  plan: [
+    {id:'curriculum-plan', t:'خطة توزيع المنهج', cls:'c-green'},
   ],
   tech: [
     {id:'tech-word', t:'تقرير استخدام برنامج الوورد (Word) لدعم المعلم', cls:'c-green'},
@@ -3833,18 +3890,21 @@ const EVAL_SUBS = {
     {id:'tech-madrasati', t:'تقرير استخدام منصة مدرستي (Madrasati)', cls:'c-pink'},
   ],
   environment: [
-    {id:'classroom-environment', t:'البيئة الصفية', cls:'c-green'},
     {id:'learning-styles-report', t:'تقرير تصنيف الطلاب وفق أنماط التعلم', cls:'c-yellow'},
   ],
-  results: [
+  classroom: [
+    {id:'classroom-environment', t:'البيئة الصفية', cls:'c-green'},
+  ],
+  analysis: [
+    {id:'test-analysis', t:'تحليل نتائج مادة لصف واحد', cls:'c-green'},
     {id:'remedial-plan', t:'الخطط العلاجية', cls:'c-yellow'},
+  ],
+  results: [
     {id:'enrichment-plan', t:'الخطط الإثرائية', cls:'c-green'},
     {id:'enrichment-plan-individual', t:'خطة إثرائية لطالب متميز', cls:'c-pink'},
     {id:'test-results', t:'نتائج الاختبارات', cls:'c-pink'},
-    {id:'test-analysis', t:'تحليل نتائج مادة لصف واحد', cls:'c-green'},
     {id:'student-honor', t:'تكريم الطلاب', cls:'c-blue'},
     {id:'appreciation-certificate', t:'مولد شهادات شكر وتقدير', cls:'c-pink'},
-    {id:'curriculum-plan', t:'خطة توزيع المنهج', cls:'c-yellow'},
   ],
 };
 
@@ -4277,40 +4337,8 @@ function renderDashboard(){
   document.getElementById('statStarted').textContent = startedCount;
 
   // radar chart
-  const cx = 150, cy = 150, maxR = 110;
-  const n = perCriterion.length;
-  let poly = [];
-  let axesSvg = '';
-  let labelsSvg = '';
-  perCriterion.forEach((c, i)=>{
-    const angle = (Math.PI * 2 * i / n) - Math.PI/2;
-    const r = maxR * c.ratio;
-    const x = cx + r * Math.cos(angle);
-    const y = cy + r * Math.sin(angle);
-    poly.push(x.toFixed(1) + ',' + y.toFixed(1));
-    const axX = cx + maxR * Math.cos(angle);
-    const axY = cy + maxR * Math.sin(angle);
-    axesSvg += `<line x1="${cx}" y1="${cy}" x2="${axX.toFixed(1)}" y2="${axY.toFixed(1)}" class="maeen-radar-axis" stroke-width="1"/>`;
-    const labX = cx + (maxR+16) * Math.cos(angle);
-    const labY = cy + (maxR+16) * Math.sin(angle);
-    labelsSvg += `<text x="${labX.toFixed(1)}" y="${labY.toFixed(1)}" font-size="11" class="maeen-radar-label" text-anchor="middle" dominant-baseline="middle">${String(i+1).padStart(2,'0')}</text>`;
-  });
-  // grid rings
-  let ringsSvg = '';
-  [0.25,0.5,0.75,1].forEach(f=>{
-    let ringPts = [];
-    for(let i=0;i<n;i++){
-      const angle = (Math.PI*2*i/n) - Math.PI/2;
-      ringPts.push((cx + maxR*f*Math.cos(angle)).toFixed(1) + ',' + (cy + maxR*f*Math.sin(angle)).toFixed(1));
-    }
-    ringsSvg += `<polygon points="${ringPts.join(' ')}" fill="none" class="maeen-radar-axis" stroke-width="1"/>`;
-  });
-  document.getElementById('radarChart').innerHTML = `
-    ${ringsSvg}
-    ${axesSvg}
-    <polygon points="${poly.join(' ')}" class="maeen-radar-area" stroke-width="2"/>
-    ${labelsSvg}
-  `;
+  /* الرسم الراداري أُزيل: أحد عشر محوراً على شاشة جوال لا تُقرأ،
+     وأعمدة الشواهد أدناه تقول الشيء نفسه بوضوح. */
 
   // bar chart
   document.getElementById('barChart').innerHTML = perCriterion.map((c,i)=>{
@@ -4523,7 +4551,10 @@ function sgalSyncMenu(){
   const openItem = document.getElementById('sgalMenuOpen');
   const deleteItem = document.getElementById('sgalMenuDelete');
   const sectionItem = document.getElementById('sgalMenuDeleteSection');
-  if (sectionItem) sectionItem.hidden = !sgalIsCustomSection();   // الأقسام الأصلية لا تُحذف
+  const renameItem = document.getElementById('sgalMenuRenameSection');
+  const custom = sgalIsCustomSection();          // الأقسام الأصلية لا تُحذف ولا يُغيَّر اسمها
+  if (sectionItem) sectionItem.hidden = !custom;
+  if (renameItem) renameItem.hidden = !custom;
   if (deleteItem) deleteItem.hidden = !slide;
   if (!openItem) return;
   openItem.hidden = !slide || slide.kind === 'image' || slide.kind === 'note';
@@ -4566,6 +4597,11 @@ function sgalIsCustomSection(){
 function sgalDeleteSection(){
   toggleSgalMenu(false);
   deleteCustomSub(sgalCtx.catId, sgalCtx.subId);
+}
+
+function sgalRenameSection(){
+  toggleSgalMenu(false);
+  renameCustomSub(sgalCtx.catId, sgalCtx.subId);
 }
 
 async function sgalDeleteCurrent(){
@@ -5007,6 +5043,7 @@ async function loadRepData(){
     const res = await window.storage.get('portfolio-main-data');
     if(res && res.value) repData = {...repData, ...JSON.parse(res.value)};
   }catch(e){ /* no saved data yet */ }
+  migrateRepStyle();
   document.getElementById('repAdmin').value = repData.admin;
   document.getElementById('repSchool').value = repData.school;
   document.getElementById('repTeacher').value = repData.teacher;
@@ -5028,10 +5065,23 @@ function toggleRepSub(key){
   document.getElementById('repSubBody-'+key).classList.toggle('open', open);
   document.getElementById('repSubChev-'+key).style.transform = open ? 'rotate(180deg)' : 'rotate(0deg)';
 }
+/* بقي نمطان: «رسمي» و«توفير حبر». الأنماط الملغاة (تدرّج، لافندر، لافندر بسيط)
+   تُحوَّل إلى أقربها، فلا يجد المعلّم إعداده المحفوظ بلا خيار مطابق. */
+const REP_STYLE_ALIASES = { gradient:'original', lavender:'original', 'lavender-simple':'simple' };
+
+function migrateRepStyle(){
+  const alias = REP_STYLE_ALIASES[repData.style];
+  if (alias) repData.style = alias;
+  else if (repData.style !== 'simple') repData.style = 'original';
+  return !!alias;
+}
+
 function applyStyleActiveUI(){
   document.querySelectorAll('.style-opt').forEach(el=>{
     el.classList.toggle('active', el.getAttribute('data-k') === repData.style);
   });
+  // تُقرأ من CSS لتطبيق «توفير حبر» على صفحات التقارير كلها بلا لمس مولّداتها
+  document.documentElement.setAttribute('data-report-style', repData.style);
 }
 async function setRepStyle(key){
   repData.style = key;
@@ -11294,12 +11344,7 @@ body.maeen-show-persistence-tools #maeen-data-tools { display: flex !important; 
   const catList = document.getElementById('catList');
   if (!homeView || !sectionsView || !catList) return;
 
-  const overview = document.createElement('section');
-  overview.className = 'maeen-home-overview';
-  overview.setAttribute('aria-label', 'ملخص ملف الإنجاز');
-  overview.innerHTML = '<div class="maeen-home-overview__intro"><span>ملخص الملف</span><strong>رتّب إنجازك خطوة بخطوة</strong><small>اختر معياراً، أضف شاهداً، ثم أرسل التقرير عند اكتماله.</small></div><div class="maeen-home-overview__metrics"><div><strong data-maeen-summary="evidence">0</strong><small>شاهد موثق</small></div><div><strong data-maeen-summary="reports">0</strong><small>تقرير مرسل</small></div><div><strong data-maeen-summary="pending">0</strong><small>معيار يحتاج متابعة</small></div></div>';
-  catList.before(overview);
-
+  /* «ملخص الملف» أُزيل: أرقامه هي نفسها التي تعرضها حلقة الرئيسية. */
   const reportToggle = document.createElement('button');
   reportToggle.type = 'button';
   reportToggle.className = 'maeen-report-toggle';
@@ -11308,21 +11353,6 @@ body.maeen-show-persistence-tools #maeen-data-tools { display: flex !important; 
   catList.before(reportToggle);
   if (reportHub) reportHub.hidden = true;
 
-  const collectSummary = () => {
-    let evidence = 0;
-    if (typeof state !== 'undefined') Object.values(state).forEach(group => {
-      const lists = Array.isArray(group) ? [group] : Object.values(group || {}).filter(Array.isArray);
-      lists.forEach(entries => { evidence += entries.length; });
-    });
-    const reports = typeof collectReportRows === 'function' ? collectReportRows().length : document.querySelectorAll('.maeen-report-row').length;
-    const pending = typeof DATA !== 'undefined' ? DATA.filter(category => category.id !== 'perf').filter(category => {
-      const categoryState = typeof getCategoryEntries === 'function' ? getCategoryEntries(category.id) : [];
-      return !categoryState.length;
-    }).length : 0;
-    overview.querySelector('[data-maeen-summary="evidence"]').textContent = evidence;
-    overview.querySelector('[data-maeen-summary="reports"]').textContent = reports;
-    overview.querySelector('[data-maeen-summary="pending"]').textContent = pending;
-  };
   const setReportVisibility = open => {
     const hub = document.getElementById('maeen-report-hub');   // يُنشأ لاحقاً، فيُبحث عنه عند كل نقرة
     if (!hub) return;
@@ -11339,15 +11369,6 @@ body.maeen-show-persistence-tools #maeen-data-tools { display: flex !important; 
       setReportVisibility(hub ? hub.hidden : true);          // فتح وإغلاق، لا فتح فقط
     }, 0);
   });
-  const previousLayoutRender = window.render;
-  if (typeof previousLayoutRender === 'function') {
-    window.render = function renderWithHomeOverview() {
-      const result = previousLayoutRender.apply(this, arguments);
-      maeenSafe('ملخص الملف', collectSummary);
-      return result;
-    };
-  }
-  maeenSafe('ملخص الملف', collectSummary);
 })();
 </script>
 <style>
@@ -11667,19 +11688,6 @@ body, .app{transition:background-color .18s ease, color .18s ease;}
 .maeen-search-empty{color:var(--m-amber) !important;}
 
 /* ملخّص الملف وزر سجل التقارير */
-.maeen-home-overview{
-  margin:14px 20px 10px !important; padding:16px 18px !important;
-  border:1px solid var(--m-line) !important; border-top-width:1px !important;
-  border-radius:14px !important; background:var(--m-surface) !important; box-shadow:none !important;
-}
-.maeen-home-overview__intro span{color:var(--m-accent); font:500 10.5px/1 var(--m-ui);}
-.maeen-home-overview__intro strong{color:var(--m-ink); font:600 17px/1.3 var(--m-ui);}
-.maeen-home-overview__intro small{color:var(--m-muted); font:300 11px/1.5 var(--m-ui);}
-.maeen-home-overview__metrics div{
-  border:1px solid var(--m-line); border-radius:10px; background:var(--m-surface-2);
-}
-.maeen-home-overview__metrics strong{color:var(--m-ink); font:600 17px/1 var(--m-ui);}
-.maeen-home-overview__metrics small{color:var(--m-muted); font:300 9.5px/1.3 var(--m-ui);}
 .maeen-report-toggle{
   width:auto !important;               /* width:100% مع هامش جانبي كان يُخرج الصفحة أفقياً */
   margin:0 20px 10px !important; padding:13px 16px !important;
@@ -11791,10 +11799,6 @@ body, .app{transition:background-color .18s ease, color .18s ease;}
 .bar-track{background:var(--m-track);}
 .bar-fill{background:var(--m-accent);}
 .bar-label{color:var(--m-muted);}
-.maeen-radar-axis{stroke:var(--m-line); fill:none;}
-.maeen-radar-label{fill:var(--m-muted);}
-.maeen-radar-area{fill:color-mix(in srgb, var(--m-accent) 22%, transparent); stroke:var(--m-accent);}
-@supports not (color: color-mix(in srgb, red, blue)){ .maeen-radar-area{fill:rgba(14,140,122,.2);} }
 
 /* لوحات مُولَّدة بالسكربت داخل لوحة التقدّم */
 #maeen-follow-up{
@@ -11857,7 +11861,7 @@ body, .app{transition:background-color .18s ease, color .18s ease;}
 .rep-subhead-title{color:var(--m-ink); font:500 14.5px/1 var(--m-ui);}
 .rep-section-title{color:var(--m-ink); border-bottom-color:var(--m-line-soft);}
 .style-opt{background:var(--m-surface-2); color:var(--m-ink); border-radius:12px; font:500 14px/1.3 var(--m-ui);}
-.style-opt[data-k="simple"], .style-opt[data-k="lavender-simple"]{background:var(--m-surface-2); color:var(--m-muted);}
+.style-opt[data-k="simple"]{background:var(--m-surface-2); color:var(--m-muted);}
 .style-opt.active{border-color:var(--m-accent); box-shadow:0 0 0 2px var(--m-accent-soft);}
 .scale-row select{width:100%;}
 
@@ -12151,7 +12155,7 @@ body, .app{transition:background-color .18s ease, color .18s ease;}
   'use strict';
   const ORDER = {
     viewSections: ['.maeen-view-heading', '#maeen-quick-finder', '.maeen-chips',
-                   '#catList', '#catEmpty', '.maeen-home-overview',
+                   '#catList', '#catEmpty',
                    '.maeen-report-toggle', '#maeen-report-hub'],
     viewReports:  ['.maeen-view-heading', '.maeen-theme-card', '.maeen-settings-data-card'],
   };
