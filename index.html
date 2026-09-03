@@ -3321,7 +3321,6 @@ const DATA = [
     {id:'attendance', title:'سجل الحضور', cls:'c-yellow'},
     {id:'supervision', title:'سجل الإشراف', cls:'c-yellow'},
     {id:'duty', title:'سجل المناوبة', cls:'c-pink'},
-    {id:'curriculum', title:'خطة توزيع المنهج', cls:'c-blue'},
     {id:'waiting', title:'سجل جدول الانتظار', cls:'c-blue'},
   ]},
   {id:'community', title:'التفاعل مع المجتمع المهني', color:'#1C3D6E', subs:[
@@ -3378,7 +3377,6 @@ const SUB_HINTS = {
   attendance: 'أرفق صورة أو نسخة من سجل حضور وغياب الطلاب.',
   supervision: 'أضف صورة من سجل الإشراف اليومي على الطلاب (الطابور، الفسحة...).',
   duty: 'أرفق صورة أو نسخة من سجل جدول المناوبة المدرسية.',
-  curriculum: 'أضف نسخة من خطة توزيع المنهج المعتمدة لهذا الفصل الدراسي.',
   waiting: 'أرفق صورة أو نسخة من سجل جدول حصص الانتظار.',
   visits: 'أضف تقرير أو صورة توثق تبادل الزيارات الصفية مع زميل/ة.',
   applied: 'أرفق تقرير تنفيذ درس تطبيقي حضره مشرف أو زملاء.',
@@ -3415,7 +3413,33 @@ async function loadState(){
     const res = await window.storage.get('portfolio-kushoof-style');
     if(res && res.value) state = JSON.parse(res.value);
   }catch(e){ state = {}; }
+  if (migrateState()) persist();
   render();
+}
+
+/* ترحيل الشواهد المحفوظة سابقاً حين ينتقل قسم من عنصر إلى عنصر آخر.
+   كل خطوة تُنفَّذ مرة واحدة: بعد النقل يُحذف المصدر فلا تتكرر. */
+const STATE_MIGRATIONS = [
+  // «خطة توزيع المنهج» تتبع عنصر «إعداد وتنفيذ خطة التعلم» لا «أداء الواجبات الوظيفية»
+  { from: ['duties', 'curriculum'], to: ['plan', 'curriculumplan'] },
+];
+
+function migrateState(){
+  let changed = false;
+  STATE_MIGRATIONS.forEach(({ from, to }) => {
+    const [fromCat, fromSub] = from;
+    const [toCat, toSub] = to;
+    const moved = state[fromCat] && state[fromCat][fromSub];
+    if (!Array.isArray(moved)) return;
+    delete state[fromCat][fromSub];
+    changed = true;
+    if (!moved.length) return;
+    if (!state[toCat]) state[toCat] = {};
+    if (!Array.isArray(state[toCat][toSub])) state[toCat][toSub] = [];
+    const seen = new Set(state[toCat][toSub].map(entry => entry.id));
+    moved.forEach(entry => { if (!seen.has(entry.id)) state[toCat][toSub].push(entry); });
+  });
+  return changed;
 }
 /* ===== أقسام يضيفها المعلّم بنفسه =====
    تُحفظ منفصلة عن الشواهد، ثم تُدمج في DATA عند الإقلاع،
@@ -3517,7 +3541,7 @@ const PORTFOLIO_TARGET_MAP = {
   'test-analysis': {catId:'analysis', subId:'resultsanalysis'},
   'student-honor': {catId:'results', subId:'honor'},
   'appreciation-certificate': {catId:'results', subId:'honor'},
-  'curriculum-plan': {catId:'duties', subId:'curriculum'},
+  'curriculum-plan': {catId:'plan', subId:'curriculumplan'},
   'workshop-run': {catId:'community', subId:'certs'},
   'workshop-attend': {catId:'community', subId:'certs'},
 };
@@ -3774,6 +3798,7 @@ const TEMPLATES_EVAL_DATA = [
   {catId:'parents', t:'التفاعل مع أولياء الأمور', cls:'c-pink'},
   {catId:'strategies', t:'التنويع في استراتيجيات التدريس', cls:'c-blue'},
   {catId:'results', t:'تحسين نتائج المتعلمين', cls:'c-green'},
+  {catId:'plan', t:'إعداد وتنفيذ خطة التعلم', cls:'c-yellow'},
   {catId:'tech', t:'توظيف تقنيات ووسائل التعلم المناسبة', cls:'c-pink'},
   {catId:'environment', t:'تهيئة البيئة التعليمية', cls:'c-blue'},
 ];
@@ -3813,6 +3838,9 @@ const EVAL_SUBS = {
   strategies: [
     {id:'strategy-report', t:'تقرير تطبيق استراتيجية', cls:'c-blue'},
   ],
+  plan: [
+    {id:'curriculum-plan', t:'خطة توزيع المنهج', cls:'c-green'},
+  ],
   tech: [
     {id:'tech-word', t:'تقرير استخدام برنامج الوورد (Word) لدعم المعلم', cls:'c-green'},
     {id:'tech-excel', t:'تقرير استخدام برنامج مايكروسوفت إكسل (Microsoft Excel)', cls:'c-yellow'},
@@ -3838,7 +3866,6 @@ const EVAL_SUBS = {
     {id:'test-analysis', t:'تحليل نتائج مادة لصف واحد', cls:'c-green'},
     {id:'student-honor', t:'تكريم الطلاب', cls:'c-blue'},
     {id:'appreciation-certificate', t:'مولد شهادات شكر وتقدير', cls:'c-pink'},
-    {id:'curriculum-plan', t:'خطة توزيع المنهج', cls:'c-yellow'},
   ],
 };
 
