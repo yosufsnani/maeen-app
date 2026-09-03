@@ -463,16 +463,21 @@
   .rpt3-ev-grid{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
   .rpt3-ev-grid img{width:100%; height:180px; object-fit:cover; border-radius:12px; border:1px solid #EFEFF3;}
 
-  /* ==== إطار طباعة موحّد للشواهد المرفوعة كصورة خام (بدون تقرير مولّد) ==== */
+  /* ==== إطار طباعة موحّد للشواهد المرفوعة كصورة خام (بدون تقرير مولّد) ====
+     الشريط عنوانه «قسم المعيار — القسم الفرعي» وقد يمتد حتى ٦٧ حرفاً، فهو
+     شريط أفقي بعرض الصفحة كاملاً (لا شارة زاوية قطرية) كي لا يُقصّ أي نص مهما طال */
   .evphoto-page{position:relative; page-break-before:always; padding:50px 34px 30px; overflow:hidden;}
-  .evphoto-ribbon-wrap{position:absolute; top:0; right:0; width:260px; height:260px; overflow:hidden; z-index:2;}
-  .evphoto-ribbon{position:absolute; top:38px; right:-58px; width:320px; text-align:center; background:linear-gradient(90deg,var(--brand-navy),var(--blue-cta)); color:#fff; font-weight:800; font-size:10.5px; line-height:1.4; padding:7px 4px; transform:rotate(45deg); box-shadow:0 2px 6px rgba(0,0,0,0.18); white-space:normal; word-break:break-word;}
+  .evphoto-ribbon-wrap{overflow:hidden;}
+  .evphoto-page .evphoto-ribbon-wrap{margin:-50px -34px 20px;}
+  .evtext-page .evphoto-ribbon-wrap{margin:-60px -40px 20px;}
+  .evexcel-page .evphoto-ribbon-wrap{margin:-40px -30px 20px;}
+  .evphoto-ribbon{width:100%; box-sizing:border-box; text-align:center; background:linear-gradient(90deg,var(--brand-navy),var(--blue-cta)); color:#fff; font-weight:800; font-size:12.5px; line-height:1.6; padding:12px 24px;}
   .evphoto-frame{margin-top:26px; border:1px solid #E4E7EC; border-radius:16px; overflow:hidden; box-shadow:0 2px 10px rgba(20,20,30,0.08); background:#fff;}
   .evphoto-frame img{width:100%; display:block; max-height:640px; object-fit:contain; background:#fafafa;}
   .evphoto-caption{text-align:center; font-size:12.5px; font-weight:700; color:var(--ink); margin-top:12px;}
   .evphoto-subcaption{text-align:center; font-size:11px; color:var(--dim); margin-top:2px;}
   .evtext-page{position:relative; page-break-before:always; padding:60px 40px; text-align:center;}
-  .evtext-title{font-size:21px; font-weight:900; color:var(--ink); margin-top:130px;}
+  .evtext-title{font-size:21px; font-weight:900; color:var(--ink); margin-top:70px;}
   .evtext-date{font-size:13px; color:var(--dim); margin-top:10px;}
   .evtext-desc{font-size:14px; color:var(--ink); margin-top:24px; line-height:1.9; max-width:80%; margin-left:auto; margin-right:auto;}
   .evexcel-page{position:relative; page-break-before:always; padding:40px 30px 30px; text-align:center;}
