@@ -1391,12 +1391,6 @@ window.maeenAlert = function(message, tone){
       </div>
 
       <div class="dash-card" style="text-align:right;">
-        <div class="dash-title">تقدّم التوثيق حسب المعيار</div>
-        <div class="dash-desc">نسبة اكتمال الشواهد لكل معيار (الحد الأقصى 4 شواهد لكل معيار)</div>
-        <svg id="radarChart" viewBox="0 0 300 300" style="width:100%; max-width:300px; margin:0 auto; display:block;"></svg>
-      </div>
-
-      <div class="dash-card" style="text-align:right;">
         <div class="dash-title">عدد الشواهد مقابل الحد الأقصى</div>
         <div class="dash-desc">مقارنة الشواهد المضافة بالحد المسموح (4) لكل معيار</div>
         <div class="bar-row" id="barChart"></div>
@@ -4277,40 +4271,8 @@ function renderDashboard(){
   document.getElementById('statStarted').textContent = startedCount;
 
   // radar chart
-  const cx = 150, cy = 150, maxR = 110;
-  const n = perCriterion.length;
-  let poly = [];
-  let axesSvg = '';
-  let labelsSvg = '';
-  perCriterion.forEach((c, i)=>{
-    const angle = (Math.PI * 2 * i / n) - Math.PI/2;
-    const r = maxR * c.ratio;
-    const x = cx + r * Math.cos(angle);
-    const y = cy + r * Math.sin(angle);
-    poly.push(x.toFixed(1) + ',' + y.toFixed(1));
-    const axX = cx + maxR * Math.cos(angle);
-    const axY = cy + maxR * Math.sin(angle);
-    axesSvg += `<line x1="${cx}" y1="${cy}" x2="${axX.toFixed(1)}" y2="${axY.toFixed(1)}" class="maeen-radar-axis" stroke-width="1"/>`;
-    const labX = cx + (maxR+16) * Math.cos(angle);
-    const labY = cy + (maxR+16) * Math.sin(angle);
-    labelsSvg += `<text x="${labX.toFixed(1)}" y="${labY.toFixed(1)}" font-size="11" class="maeen-radar-label" text-anchor="middle" dominant-baseline="middle">${String(i+1).padStart(2,'0')}</text>`;
-  });
-  // grid rings
-  let ringsSvg = '';
-  [0.25,0.5,0.75,1].forEach(f=>{
-    let ringPts = [];
-    for(let i=0;i<n;i++){
-      const angle = (Math.PI*2*i/n) - Math.PI/2;
-      ringPts.push((cx + maxR*f*Math.cos(angle)).toFixed(1) + ',' + (cy + maxR*f*Math.sin(angle)).toFixed(1));
-    }
-    ringsSvg += `<polygon points="${ringPts.join(' ')}" fill="none" class="maeen-radar-axis" stroke-width="1"/>`;
-  });
-  document.getElementById('radarChart').innerHTML = `
-    ${ringsSvg}
-    ${axesSvg}
-    <polygon points="${poly.join(' ')}" class="maeen-radar-area" stroke-width="2"/>
-    ${labelsSvg}
-  `;
+  /* الرسم الراداري أُزيل: أحد عشر محوراً على شاشة جوال لا تُقرأ،
+     وأعمدة الشواهد أدناه تقول الشيء نفسه بوضوح. */
 
   // bar chart
   document.getElementById('barChart').innerHTML = perCriterion.map((c,i)=>{
@@ -11294,12 +11256,7 @@ body.maeen-show-persistence-tools #maeen-data-tools { display: flex !important; 
   const catList = document.getElementById('catList');
   if (!homeView || !sectionsView || !catList) return;
 
-  const overview = document.createElement('section');
-  overview.className = 'maeen-home-overview';
-  overview.setAttribute('aria-label', 'ملخص ملف الإنجاز');
-  overview.innerHTML = '<div class="maeen-home-overview__intro"><span>ملخص الملف</span><strong>رتّب إنجازك خطوة بخطوة</strong><small>اختر معياراً، أضف شاهداً، ثم أرسل التقرير عند اكتماله.</small></div><div class="maeen-home-overview__metrics"><div><strong data-maeen-summary="evidence">0</strong><small>شاهد موثق</small></div><div><strong data-maeen-summary="reports">0</strong><small>تقرير مرسل</small></div><div><strong data-maeen-summary="pending">0</strong><small>معيار يحتاج متابعة</small></div></div>';
-  catList.before(overview);
-
+  /* «ملخص الملف» أُزيل: أرقامه هي نفسها التي تعرضها حلقة الرئيسية. */
   const reportToggle = document.createElement('button');
   reportToggle.type = 'button';
   reportToggle.className = 'maeen-report-toggle';
@@ -11308,21 +11265,6 @@ body.maeen-show-persistence-tools #maeen-data-tools { display: flex !important; 
   catList.before(reportToggle);
   if (reportHub) reportHub.hidden = true;
 
-  const collectSummary = () => {
-    let evidence = 0;
-    if (typeof state !== 'undefined') Object.values(state).forEach(group => {
-      const lists = Array.isArray(group) ? [group] : Object.values(group || {}).filter(Array.isArray);
-      lists.forEach(entries => { evidence += entries.length; });
-    });
-    const reports = typeof collectReportRows === 'function' ? collectReportRows().length : document.querySelectorAll('.maeen-report-row').length;
-    const pending = typeof DATA !== 'undefined' ? DATA.filter(category => category.id !== 'perf').filter(category => {
-      const categoryState = typeof getCategoryEntries === 'function' ? getCategoryEntries(category.id) : [];
-      return !categoryState.length;
-    }).length : 0;
-    overview.querySelector('[data-maeen-summary="evidence"]').textContent = evidence;
-    overview.querySelector('[data-maeen-summary="reports"]').textContent = reports;
-    overview.querySelector('[data-maeen-summary="pending"]').textContent = pending;
-  };
   const setReportVisibility = open => {
     const hub = document.getElementById('maeen-report-hub');   // يُنشأ لاحقاً، فيُبحث عنه عند كل نقرة
     if (!hub) return;
@@ -11339,15 +11281,6 @@ body.maeen-show-persistence-tools #maeen-data-tools { display: flex !important; 
       setReportVisibility(hub ? hub.hidden : true);          // فتح وإغلاق، لا فتح فقط
     }, 0);
   });
-  const previousLayoutRender = window.render;
-  if (typeof previousLayoutRender === 'function') {
-    window.render = function renderWithHomeOverview() {
-      const result = previousLayoutRender.apply(this, arguments);
-      maeenSafe('ملخص الملف', collectSummary);
-      return result;
-    };
-  }
-  maeenSafe('ملخص الملف', collectSummary);
 })();
 </script>
 <style>
@@ -11667,19 +11600,6 @@ body, .app{transition:background-color .18s ease, color .18s ease;}
 .maeen-search-empty{color:var(--m-amber) !important;}
 
 /* ملخّص الملف وزر سجل التقارير */
-.maeen-home-overview{
-  margin:14px 20px 10px !important; padding:16px 18px !important;
-  border:1px solid var(--m-line) !important; border-top-width:1px !important;
-  border-radius:14px !important; background:var(--m-surface) !important; box-shadow:none !important;
-}
-.maeen-home-overview__intro span{color:var(--m-accent); font:500 10.5px/1 var(--m-ui);}
-.maeen-home-overview__intro strong{color:var(--m-ink); font:600 17px/1.3 var(--m-ui);}
-.maeen-home-overview__intro small{color:var(--m-muted); font:300 11px/1.5 var(--m-ui);}
-.maeen-home-overview__metrics div{
-  border:1px solid var(--m-line); border-radius:10px; background:var(--m-surface-2);
-}
-.maeen-home-overview__metrics strong{color:var(--m-ink); font:600 17px/1 var(--m-ui);}
-.maeen-home-overview__metrics small{color:var(--m-muted); font:300 9.5px/1.3 var(--m-ui);}
 .maeen-report-toggle{
   width:auto !important;               /* width:100% مع هامش جانبي كان يُخرج الصفحة أفقياً */
   margin:0 20px 10px !important; padding:13px 16px !important;
@@ -11791,10 +11711,6 @@ body, .app{transition:background-color .18s ease, color .18s ease;}
 .bar-track{background:var(--m-track);}
 .bar-fill{background:var(--m-accent);}
 .bar-label{color:var(--m-muted);}
-.maeen-radar-axis{stroke:var(--m-line); fill:none;}
-.maeen-radar-label{fill:var(--m-muted);}
-.maeen-radar-area{fill:color-mix(in srgb, var(--m-accent) 22%, transparent); stroke:var(--m-accent);}
-@supports not (color: color-mix(in srgb, red, blue)){ .maeen-radar-area{fill:rgba(14,140,122,.2);} }
 
 /* لوحات مُولَّدة بالسكربت داخل لوحة التقدّم */
 #maeen-follow-up{
@@ -12151,7 +12067,7 @@ body, .app{transition:background-color .18s ease, color .18s ease;}
   'use strict';
   const ORDER = {
     viewSections: ['.maeen-view-heading', '#maeen-quick-finder', '.maeen-chips',
-                   '#catList', '#catEmpty', '.maeen-home-overview',
+                   '#catList', '#catEmpty',
                    '.maeen-report-toggle', '#maeen-report-hub'],
     viewReports:  ['.maeen-view-heading', '.maeen-theme-card', '.maeen-settings-data-card'],
   };
