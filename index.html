@@ -11462,6 +11462,9 @@ body, .app{transition:background-color .18s ease, color .18s ease;}
 .nav-btn.active .nav-icon{filter:none;}
 
 /* ---------- ١٠. الطبقات العائمة ---------- */
+/* معاينة التقرير تُفتح من داخل شاشة القسم، فيجب أن تعلوها:
+   الاثنتان .modal-overlay بنفس z-index، وترتيب DOM كان يضع القسم فوقها. */
+#linkedReportPreviewOverlay{z-index:700;}
 .menu-overlay, .modal-overlay{background:var(--m-overlay);}
 .menu-sheet{background:var(--m-surface); border:1px solid var(--m-line); border-radius:16px; box-shadow:var(--m-shadow-lg);}
 .menu-item{color:var(--m-ink); font:400 14.5px/1 var(--m-ui);}
