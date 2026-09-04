@@ -507,7 +507,7 @@
 
   /* ==== الغلاف وفواصل الأقسام (خلفية موحّدة + نص حقيقي) ==== */
   .cover-divider-page{
-    position:relative; width:100%; height:281mm; box-sizing:border-box;
+    position:relative; width:100%; height:297mm; box-sizing:border-box;
     background-size:cover; background-position:center; overflow:hidden;
     padding:60px 50px; font-family:'Tajawal',sans-serif; direction:rtl;
   }
@@ -720,7 +720,18 @@
     .app, .bottom-nav, .menu-overlay{display:none !important;}
     #printView, #printView *{visibility:visible;}
     #printView{display:block; position:absolute; top:0; right:0; left:0; bottom:0; margin:0; padding:0;}
-    @page{ size:A4; margin:8mm; }
+    /* هامش الطباعة صفر ليمتد الغلاف والفواصل حتى حافة الورقة.
+       الهامش نُقل إلى الصفحات الأخرى نفسها، فتبقى هندستها كما كانت
+       تماماً (١٩٤×٢٨١مم) ويبقى شريط القسم على بُعد ٨مم من الحافة. */
+    @page{ size:A4; margin:0; }
+    /* الشهادة مستثناة: applyCertPrintRules تفرض لها @page{margin:0} وتخطيطاً
+       يملأ الورقة، فأي حشو هنا يقلّصها. */
+    .rpt2-page, .shw-page{ padding:8mm; }
+    /* الحشو الأصلي + ٨مم. شريط القسم يسحب الحشو الأصلي وحده بهوامش سالبة،
+       فيستقر على بُعد ٨مم من حافة الورقة كما كان. */
+    .evphoto-page{ padding:calc(8mm + 50px) calc(8mm + 34px) calc(8mm + 30px); }
+    .evtext-page{ padding:calc(8mm + 60px) calc(8mm + 40px); }
+    .evexcel-page{ padding:calc(8mm + 40px) calc(8mm + 30px) calc(8mm + 30px); }
     .p-cat{margin-bottom:22px; break-inside:avoid;}
     .p-h{font-size:19px; font-weight:900; border-bottom:2px solid #ddd; padding-bottom:6px; margin-bottom:10px;}
     .p-e{font-size:13px; margin-bottom:8px;}
@@ -728,7 +739,7 @@
     .p-title{font-size:30px; font-weight:900; text-align:center; margin-bottom:30px;}
     .shw-page-card{box-shadow:none; border-radius:0;}
     .shw-images img{height:220px;}
-    .rpt3-page{margin:0; padding:0;}
+    .rpt3-page{margin:0; padding:8mm;}
     .rpt3-card{box-shadow:none; border-radius:0; border:none; width:100%; height:277mm; box-sizing:border-box;}
     .rpt3-evpage{page-break-before:always; margin:0;}
   }
