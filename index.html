@@ -11040,9 +11040,72 @@ async function doSaveSchedImage(){
   }
 }
 
+/* ترحيل لمرة واحدة: الشواهد التي رُفعت قبل التعديل كانت تُجمَع في مُدخل واحد
+   يحمل عدة صور، فتُحتسب صورة واحدة في العدّاد وتُطبع مجمّعة. هنا نفكّها إلى
+   شاهد مستقل لكل صورة — نفس القسم ونفس التاريخ، لا شيء يُحذف ولا يُنقل.
+   يُفكّ فقط ما كان عنوانه تلقائياً («صور مرفقة» / «صورة مرفقة»)؛ أما ما سمّاه
+   المعلّم بنفسه فصوره توثّق حدثاً واحداً فتبقى كما هي.
+   لا نحتاج علامة «نُفّذ» في التخزين: بعد الفكّ لا يبقى مُدخل بأكثر من صورة،
+   فإعادة التشغيل لا تجد ما تفكّه ولا تكتب شيئاً. */
+function isBundledAutoPhotoEntry(entry){
+  if(!entry || typeof entry !== 'object') return false;
+  if(entry.reportRef || entry.attachment) return false;
+  if(!Array.isArray(entry.images) || entry.images.length < 2) return false;
+  return AUTO_EVIDENCE_TITLES.includes(String(entry.title || '').trim());
+}
+
+function splitBundledImageEntries(){
+  const usedIds = new Set();
+  const buckets = [];
+  Object.keys(state || {}).forEach(catId => {
+    const branch = state[catId];
+    if(Array.isArray(branch)) buckets.push(branch);
+    else if(branch && typeof branch === 'object'){
+      Object.keys(branch).forEach(subId => { if(Array.isArray(branch[subId])) buckets.push(branch[subId]); });
+    }
+  });
+  buckets.forEach(arr => arr.forEach(e => { if(e && e.id != null) usedIds.add(e.id); }));
+
+  let nextId = Date.now();
+  const freshId = () => { while(usedIds.has(nextId)) nextId++; usedIds.add(nextId); return nextId++; };
+
+  let bundles = 0, produced = 0;
+  buckets.forEach(arr => {
+    for(let i = arr.length - 1; i >= 0; i--){
+      const entry = arr[i];
+      if(!isBundledAutoPhotoEntry(entry)) continue;
+      /* الوصف القديم كان «N صورة محفوظة ضمن هذا القسم» — صار غير صحيح بعد الفكّ. */
+      const parts = entry.images.map((image, idx) => Object.assign({}, entry, {
+        id: idx === 0 ? entry.id : freshId(),
+        title: 'صورة مرفقة',
+        desc: '',
+        images: [image]
+      }));
+      arr.splice(i, 1, ...parts);
+      bundles++;
+      produced += parts.length;
+    }
+  });
+  return { bundles, produced };
+}
+
+async function runImagesSplitMigration(){
+  let result;
+  try{ result = splitBundledImageEntries(); }
+  catch(e){ console.error('maeen: تعذّر ترحيل الشواهد المجمّعة', e); return; }
+  if(!result.bundles) return;
+  try{ await persist(); }
+  catch(e){ console.error('maeen: تعذّر حفظ الشواهد بعد الفكّ', e); return; }
+  render();
+  if(typeof window.maeenNotify === 'function'){
+    window.maeenNotify(`تم فكّ ${result.bundles} من الشواهد القديمة المجمّعة إلى ${result.produced} شاهداً منفصلاً.`, 'success');
+  }
+}
+
 window.maeenInitApp = async function(){
   await loadCustomSubs();
   await loadState();
+  await runImagesSplitMigration();
   await loadRepData();
   await loadShwState();
   await loadRptState();
