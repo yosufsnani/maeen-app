@@ -740,6 +740,7 @@
 </script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 <script type="module">
   import * as pdfjsLib from 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.min.mjs';
   pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs';
@@ -1376,6 +1377,14 @@ window.maeenAlert = function(message, tone){
           <p>اختر أحد القوالب، أضف اسم الطالب والمناسبة، ثم احفظ الشهادة أو اطبعها.</p>
         </div>
         <button type="button" onclick="openCertModal()">فتح المولّد</button>
+      </section>
+      <section class="maeen-cert-launcher" aria-labelledby="maeenSchedLauncherTitle">
+        <div>
+          <span>جدول الحصص</span>
+          <h3 id="maeenSchedLauncherTitle">جدولك الأسبوعي</h3>
+          <p>عرّف موادك وفصولك مرة واحدة، ثم اضغط على خانات الجدول لتعبئته، واحفظه صورة أو اطبعه.</p>
+        </div>
+        <button type="button" onclick="openSchedModal()">فتح الجدول</button>
       </section>
       <div class="cat-card" id="evalCard" style="cursor:default;" onclick="event.stopPropagation()">
         <div class="cat-tab" style="background:#4C86A8"></div>
@@ -3226,6 +3235,64 @@ window.maeenAlert = function(message, tone){
   </div>
 </div>
 
+<!-- قالب: جدول الحصص الأسبوعي (أداة مستقلة، لا تُرسل لملف الإنجاز) -->
+<div class="modal-overlay" id="schedModalOverlay">
+  <div class="modal-sheet" onclick="event.stopPropagation()" style="max-height:88vh; overflow-y:auto;">
+    <div class="modal-title">جدول الحصص الأسبوعي</div>
+    <div id="schedEntryList" class="entry-list-plain" style="margin-bottom:14px;"></div>
+
+    <div class="rep-field-label">عنوان الجدول</div>
+    <input type="text" id="rsched-title" class="rep-field-input" placeholder="جدول الحصص الأسبوعي">
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+      <div>
+        <div class="rep-field-label">الفصل الدراسي</div>
+        <input type="text" id="rsched-semester" class="rep-field-input" placeholder="مثال: الأول">
+      </div>
+      <div>
+        <div class="rep-field-label">العام الدراسي</div>
+        <input type="text" id="rsched-year" class="rep-field-input" placeholder="مثال: ١٤٤٨هـ">
+      </div>
+    </div>
+
+    <div class="rep-section-title">الخطوة الأولى: موادك وفصولك</div>
+    <div style="font-size:12.5px; color:var(--sub); margin-bottom:8px; line-height:1.7;">
+      اكتبها مرة واحدة، وبعدها تختارها من خانات الجدول بضغطة — بدل كتابتها ٣٥ مرة.
+    </div>
+    <div style="display:flex; gap:6px; margin-bottom:10px;">
+      <input type="text" id="rsched-class-input" class="rep-field-input" style="flex:1; margin:0;" placeholder="مثال: علوم - ٣/١" onkeydown="if(event.key==='Enter'){event.preventDefault(); addSchedClass();}">
+      <button type="button" class="btn-save" style="flex:0 0 auto; width:auto; padding:0 16px;" onclick="addSchedClass()">إضافة</button>
+    </div>
+    <div id="schedClassChips" style="margin-bottom:6px;"></div>
+
+    <div class="rep-section-title">الخطوة الثانية: تعبئة الجدول</div>
+    <div class="rep-field-label">عدد الحصص في اليوم</div>
+    <select id="rsched-periods" class="rep-field-input" onchange="schedSetPeriods(this.value)">
+      <option value="5">٥ حصص</option>
+      <option value="6">٦ حصص</option>
+      <option value="7" selected>٧ حصص</option>
+      <option value="8">٨ حصص</option>
+      <option value="9">٩ حصص</option>
+    </select>
+    <div id="schedGridWrap" style="overflow-x:auto; margin-top:10px;"></div>
+
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeSchedModal()">إغلاق</button>
+      <button class="btn-save" onclick="addSchedEntry()">حفظ الجدول</button>
+    </div>
+  </div>
+</div>
+<!-- معاينة جدول الحصص -->
+<div class="modal-overlay" id="schedPreviewOverlay">
+  <div class="modal-sheet" onclick="event.stopPropagation()" style="max-height:90vh; overflow-y:auto; padding:16px;">
+    <div id="schedPreviewBody" style="overflow-x:auto;"></div>
+    <div class="modal-actions" style="margin-top:10px;">
+      <button class="btn-cancel" onclick="closeSchedPreview()">رجوع</button>
+      <button class="btn-cancel" id="schedImageBtn" onclick="doSaveSchedImage()">حفظ كصورة</button>
+      <button class="btn-save" onclick="doPrintSched()">طباعة / حفظ PDF</button>
+    </div>
+  </div>
+</div>
+
 <!-- قالب: تقرير تنفيذ دورة أو ورشة عمل -->
 <div class="modal-overlay" id="wsrunModalOverlay">
   <div class="modal-sheet" onclick="event.stopPropagation()" style="max-height:88vh; overflow-y:auto;">
@@ -3652,6 +3719,7 @@ const BUILD_FN_MAP = {
   'student-honor': buildHonorPageHtml,
   'appreciation-certificate': buildCertPageHtml,
   'curriculum-plan': buildCurrplanPageHtml,
+  'class-schedule': buildSchedPageHtml,
   'learning-styles-report': buildLearningStylesPageHtml,
   'workshop-run': buildWsrunPageHtml,
   'workshop-attend': buildWsattPageHtml,
@@ -10734,6 +10802,244 @@ function doPrintCurrplan(){
   printNow();
 }
 
+// ---- جدول الحصص الأسبوعي (أداة مستقلة: تُحفظ وتُطبع وتُصدَّر صورة، بلا ربط بملف الإنجاز) ----
+const SCHED_DAYS = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس'];
+const SCHED_PERIOD_NAMES = ['الأولى','الثانية','الثالثة','الرابعة','الخامسة','السادسة','السابعة','الثامنة','التاسعة'];
+const SCHED_FIXED_OPTIONS = ['انتظار', 'إشراف', 'فسحة', 'نشاط'];
+let schedClasses = [];   // المواد/الفصول التي عرّفها المعلم
+let schedPeriods = 7;
+let schedCells = {};     // 'يوم-حصة' → القيمة المختارة
+
+function openSchedModal(){
+  document.getElementById('rsched-title').value = '';
+  document.getElementById('rsched-semester').value = repData.semester || '';
+  document.getElementById('rsched-year').value = repData.year || '';
+  document.getElementById('rsched-class-input').value = '';
+  document.getElementById('rsched-periods').value = '7';
+  schedClasses = [];
+  schedPeriods = 7;
+  schedCells = {};
+  renderSchedClasses();
+  renderSchedGrid();
+  renderSchedList();
+  document.getElementById('schedModalOverlay').classList.add('show');
+}
+function closeSchedModal(){
+  document.getElementById('schedModalOverlay').classList.remove('show');
+}
+function renderSchedList(){
+  const entries = rptEntries('class-schedule');
+  const el = document.getElementById('schedEntryList');
+  if(entries.length === 0){ el.innerHTML = `<div class="empty-note">لا توجد جداول محفوظة بعد</div>`; return; }
+  el.innerHTML = entries.slice().reverse().map(e=>`
+    <div class="entry-plain">
+      <div>
+        <div class="et">${escapeHtml(e.title || 'جدول الحصص الأسبوعي')}</div>
+        <div class="em">${escapeHtml(e.year || '')}${e.semester ? ' · ' + escapeHtml(e.semester) : ''}</div>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:6px; align-items:flex-end;">
+        <button class="entry-del" style="color:var(--blue-cta);" onclick="previewSched(${e.id})">معاينة</button>
+        <button class="entry-del" onclick="deleteSchedEntry(${e.id})">حذف</button>
+      </div>
+    </div>
+  `).join('');
+}
+function deleteSchedEntry(id){
+  const arr = rptEntries('class-schedule');
+  const idx = arr.findIndex(e=> e.id === id);
+  if(idx > -1) arr.splice(idx, 1);
+  persistRpt();
+  renderSchedList();
+}
+function addSchedClass(){
+  const input = document.getElementById('rsched-class-input');
+  const value = input.value.trim();
+  if(!value) return;
+  if(schedClasses.includes(value)){ window.maeenAlert('هذه المادة مضافة بالفعل.'); return; }
+  schedClasses.push(value);
+  input.value = '';
+  renderSchedClasses();
+  renderSchedGrid();
+}
+function removeSchedClass(index){
+  schedClasses.splice(index, 1);
+  renderSchedClasses();
+  renderSchedGrid();
+}
+function renderSchedClasses(){
+  const el = document.getElementById('schedClassChips');
+  if(!schedClasses.length){
+    el.innerHTML = `<div class="empty-note" style="margin:0;">لم تضف أي مادة بعد — أضف مادة واحدة على الأقل لتظهر في خانات الجدول.</div>`;
+    return;
+  }
+  el.innerHTML = schedClasses.map((c, i)=>`
+    <span class="sched-chip">${escapeHtml(c)}<button type="button" onclick="removeSchedClass(${i})" aria-label="حذف ${escapeHtml(c)}">×</button></span>
+  `).join('');
+}
+function schedSetPeriods(value){
+  schedPeriods = Math.max(1, Math.min(9, parseInt(value, 10) || 7));
+  renderSchedGrid();
+}
+function renderSchedGrid(){
+  const el = document.getElementById('schedGridWrap');
+  // القيم المحفوظة تبقى خياراً حتى لو حُذفت المادة من القائمة، فلا تضيع تعبئة سابقة
+  const usedValues = Object.values(schedCells).filter(Boolean);
+  const options = [...new Set([...schedClasses, ...SCHED_FIXED_OPTIONS, ...usedValues])];
+  el.innerHTML = `
+    <table class="sched-grid">
+      <thead>
+        <tr>
+          <th>اليوم</th>
+          ${Array.from({length: schedPeriods}, (_, p)=> `<th>${SCHED_PERIOD_NAMES[p]}</th>`).join('')}
+        </tr>
+      </thead>
+      <tbody>
+        ${SCHED_DAYS.map((day, d)=>`
+          <tr>
+            <th>${day}</th>
+            ${Array.from({length: schedPeriods}, (_, p)=>{
+              const key = `${d}-${p}`;
+              const current = schedCells[key] || '';
+              return `<td><select onchange="schedCells['${key}'] = this.value" aria-label="${day} - الحصة ${SCHED_PERIOD_NAMES[p]}">
+                <option value=""${current ? '' : ' selected'}>—</option>
+                ${options.map(o=> `<option value="${escapeHtml(o)}"${o === current ? ' selected' : ''}>${escapeHtml(o)}</option>`).join('')}
+              </select></td>`;
+            }).join('')}
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  `;
+}
+function addSchedEntry(){
+  const filled = Object.values(schedCells).filter(Boolean).length;
+  if(!filled){ window.maeenAlert('عبّئ خانة واحدة على الأقل في الجدول قبل الحفظ.'); return; }
+  const entry = {
+    id: Date.now(),
+    title: document.getElementById('rsched-title').value.trim() || 'جدول الحصص الأسبوعي',
+    semester: document.getElementById('rsched-semester').value.trim(),
+    year: document.getElementById('rsched-year').value.trim(),
+    periods: schedPeriods,
+    cells: {...schedCells}
+  };
+  rptEntries('class-schedule').push(entry);
+  persistRpt();
+  renderSchedList();
+  previewSched(entry.id);
+}
+function buildSchedPageHtml(entry){
+  const periods = entry.periods || 7;
+  const rowsHtml = SCHED_DAYS.map((day, d)=>`
+    <tr>
+      <th style="border:1px solid #E4E4EA; padding:9px 6px; background:#F1F1F5; font-size:12px; white-space:nowrap;">${day}</th>
+      ${Array.from({length: periods}, (_, p)=>{
+        const value = (entry.cells || {})[`${d}-${p}`] || '';
+        return `<td style="border:1px solid #E4E4EA; padding:9px 6px; text-align:center; font-size:11.5px;">${escapeHtml(value) || '—'}</td>`;
+      }).join('')}
+    </tr>
+  `).join('');
+  return `
+    <div class="rpt2-page" style="${reportCardStyle()}">
+      <div class="rpt2-card">
+        <div class="rpt2-topbar"></div>
+        <div class="rpt2-header">
+          <div class="rpt2-header-right">
+            <div>المملكة العربية السعودية</div>
+            <div>وزارة التعليم</div>
+            <div>${escapeHtml(repData.admin || 'الإدارة العامة للتعليم')}</div>
+            <div>${escapeHtml(repData.school || 'اسم المدرسة')}</div>
+          </div>
+          <div class="rpt2-header-center">
+            <div class="rpt2-logo-badge"><img src="${MOE_LOGO}"></div>
+            <div class="rpt2-logo-text">${escapeHtml(repData.school || 'شعار المدرسة')}</div>
+          </div>
+          <div class="rpt2-header-left">
+            ${extraLogoHtml('rpt2-extra-logo')}
+            <div class="rpt2-header-left__text">
+              ${entry.year ? `<div>العام الدراسي ${escapeHtml(entry.year)}</div>` : ''}
+              ${entry.semester ? `<div>${escapeHtml(entry.semester)}</div>` : ''}
+            </div>
+          </div>
+        </div>
+        <div class="rpt2-title-wrap"><div class="rpt2-title-badge">${escapeHtml(entry.title)}</div></div>
+        <div class="rpt2-body">
+          <div class="rpt2-listbox">
+            <div class="rpt2-flabel-row"><div class="rpt2-flabel">${escapeHtml(genderLabels().teacher)} / ${escapeHtml(repData.teacher || 'اسم المعلم')}</div><div class="rpt2-flabel-line"></div></div>
+            <table style="width:100%; border-collapse:collapse; margin-top:8px;">
+              <thead>
+                <tr style="background:#F1F1F5;">
+                  <th style="border:1px solid #E4E4EA; padding:9px 6px; font-size:12px;">اليوم</th>
+                  ${Array.from({length: periods}, (_, p)=> `<th style="border:1px solid #E4E4EA; padding:9px 6px; font-size:11.5px;">${SCHED_PERIOD_NAMES[p]}</th>`).join('')}
+                </tr>
+              </thead>
+              <tbody>${rowsHtml}</tbody>
+            </table>
+          </div>
+          <div class="rpt2-signrow">
+            <div>${escapeHtml(genderLabels().teacher)} / ${escapeHtml(repData.teacher || 'اسم المعلم')}</div>
+            <div>${escapeHtml(genderLabels().principal)} / ${escapeHtml(repData.principal || 'اسم المدير')}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+let schedPreviewEntryId = null;
+function previewSched(id){
+  const entry = rptEntries('class-schedule').find(e=> e.id === id);
+  if(!entry) return;
+  schedPreviewEntryId = id;
+  document.getElementById('schedPreviewBody').innerHTML = buildSchedPageHtml(entry);
+  document.getElementById('schedPreviewOverlay').classList.add('show');
+}
+function closeSchedPreview(){ document.getElementById('schedPreviewOverlay').classList.remove('show'); }
+function doPrintSched(){
+  const entry = rptEntries('class-schedule').find(e=> e.id === schedPreviewEntryId);
+  if(!entry) return;
+  document.getElementById('printView').innerHTML = buildSchedPageHtml(entry);
+  printNow();
+}
+async function doSaveSchedImage(){
+  const entry = rptEntries('class-schedule').find(e=> e.id === schedPreviewEntryId);
+  const btn = document.getElementById('schedImageBtn');
+  if(!entry) return;
+  if(typeof html2canvas === 'undefined'){
+    window.maeenAlert('تعذّر تجهيز الصورة — تأكد من اتصالك بالإنترنت ثم أعد فتح الصفحة.');
+    return;
+  }
+  const label = btn ? btn.textContent : '';
+  if(btn){ btn.textContent = 'جارٍ التجهيز…'; btn.disabled = true; }
+  // يُرسم الجدول في حاوية خارج الشاشة بعرض A4 الكامل، لا من المعاينة نفسها:
+  // على الجوال تكون المعاينة مضغوطة، فتخرج الصورة مشوّهة وأعمدتها مقصوصة
+  const stage = document.createElement('div');
+  stage.style.cssText = 'position:fixed; top:0; left:-10000px; width:794px; background:#fff;';
+  stage.innerHTML = buildSchedPageHtml(entry);
+  document.body.appendChild(stage);
+  const node = stage.firstElementChild;
+  try{
+    const canvas = await html2canvas(node, { scale: 2, backgroundColor: '#ffffff', useCORS: true, logging: false, width: 794, windowWidth: 794 });
+    // Blob بدل data:URL — صورة A4 بمقياس ٢ تتجاوز عدة ميغابايت، وبعض متصفحات الجوال
+    // ترفض تنزيل روابط البيانات الطويلة
+    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+    if(!blob) throw new Error('canvas-to-blob-failed');
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.download = `${(entry.title || 'جدول الحصص').replace(/[\\/:*?"<>|]/g, '-')}.png`;
+    link.href = url;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(()=> URL.revokeObjectURL(url), 4000);
+    window.maeenNotify?.('تم حفظ الجدول كصورة.', 'success');
+  }catch(e){
+    console.error('maeen: تعذّر حفظ الجدول كصورة', e);
+    window.maeenAlert('تعذّر حفظ الصورة. جرّب «طباعة / حفظ PDF» بدلاً منها.');
+  }finally{
+    stage.remove();
+    if(btn){ btn.textContent = label; btn.disabled = false; }
+  }
+}
+
 window.maeenInitApp = async function(){
   await loadCustomSubs();
   await loadState();
@@ -12539,6 +12845,14 @@ body, .app{transition:background-color .18s ease, color .18s ease;}
 .maeen-custom-fields-print__row{display:flex; justify-content:space-between; gap:10px; padding:5px 0; font-size:12.5px; border-bottom:1px dashed #eee; color:#1C1C1E;}
 .maeen-custom-fields-print__row:last-child{border-bottom:none;}
 
+/* ---- جدول الحصص: شرائح المواد + شبكة التعبئة ---- */
+.sched-chip{display:inline-flex; align-items:center; gap:6px; margin:0 0 6px 6px; padding:6px 10px; border:1px solid var(--m-line,#ddd); border-radius:999px; background:var(--m-surface-2,#f6f6f8); font:700 12px/1 Tajawal,Arial,sans-serif; color:var(--m-ink,#1C1C1E);}
+.sched-chip button{border:none; border-radius:50%; width:18px; height:18px; padding:0; background:#f3d9d9; color:#a33; font:700 12px/18px Arial,sans-serif; cursor:pointer;}
+.sched-grid{width:100%; border-collapse:collapse; font-size:12px;}
+.sched-grid th{border:1px solid var(--m-line,#ddd); padding:7px 5px; background:var(--m-surface-2,#f1f1f5); font-weight:800; white-space:nowrap;}
+.sched-grid td{border:1px solid var(--m-line,#ddd); padding:3px;}
+.sched-grid select{width:100%; min-width:92px; padding:7px 4px; border:1px solid var(--m-line,#ddd); border-radius:7px; background:var(--m-surface,#fff); color:var(--m-ink,#1C1C1E); font:600 11.5px/1 Tajawal,Arial,sans-serif;}
+
 .sgal-caption{
   padding:10px 20px 0; text-align:center; color:var(--m-muted); font:300 12px/1.6 var(--m-ui);
 }
@@ -12714,6 +13028,7 @@ body, .app{transition:background-color .18s ease, color .18s ease;}
     'student-honor': 'honorModalOverlay',
     'appreciation-certificate': 'certModalOverlay',
     'curriculum-plan': 'currplanModalOverlay',
+    'class-schedule': 'schedModalOverlay',
     'workshop-run': 'wsrunModalOverlay',
     'workshop-attend': 'wsattModalOverlay',
     'learning-styles-report': 'learningStylesModalOverlay',
