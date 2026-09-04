@@ -497,15 +497,6 @@
   .ev-excel-table-wrap table{border-collapse:collapse; font-size:11px; width:100%;}
   .ev-excel-table-wrap td{border:1px solid #E4E4EA; padding:5px 7px;}
 
-  /* شريط سفلي ثابت العلامة يتكرر بكل صفحة مطبوعة */
-  .print-footer-fixed{display:none;}
-  @media print{
-    .print-footer-fixed{
-      display:block; position:fixed; bottom:0; left:0; right:0; height:9px;
-      background:linear-gradient(90deg,var(--blue-cta),var(--brand-green));
-    }
-  }
-
   /* خط «كاف عارف رقعة» — مرخّص بـ SIL OFL 1.1، نص الرخصة في fonts-OFL.txt بجذر المستودع.
      خط الرقعة أحادي الوزن: لا يُطلب منه font-weight عريض وإلا اصطنعه المتصفح مشوّهاً. */
   @font-face{
@@ -5458,7 +5449,7 @@ async function doPrint(){
     catHtml += bodyPages;
     pages += catHtml;
   });
-  pv.innerHTML = pages + '<div class="print-footer-fixed"></div>';
+  pv.innerHTML = pages;
   printNow();
 }
 
