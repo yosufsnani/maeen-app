@@ -13380,5 +13380,185 @@ body, .app{transition:background-color .18s ease, color .18s ease;}
   maeenSafe('تحميل الخانات المخفية', loadHiddenFields);
 })();
 </script>
+<script>
+/* ==== تعديل تقرير محفوظ من معاينة ملف الإنجاز ====
+   دوال الحفظ في القوالب تقرأ النموذج وتدفع مُدخلاً جديداً. فبدل كتابة مسار
+   تعديل لكل قالب، نملأ النموذج من المُدخل ثم نلفّ دالة الحفظ فتستبدل بدل أن
+   تدفع. الجدول أدناه مولَّد من دوال الحفظ نفسها: أي حقل تقرأه الدالة نعرف
+   كيف نعيده. */
+const RPT_EDIT_MAP = {
+  'applied-lesson': {"open":"openApplModal","save":"addApplEntry","f":{"date":["rappl-date","t"],"subject":["rappl-subject","t"],"grade":["rappl-grade","t"],"topic":["rappl-topic","t"],"notes":["rappl-notes","t"],"goals":["rappl-goals","l"],"strategies":["rappl-strategies","l"],"visitors":["rappl-visitors","l"],"title":["rappl-title","t"]},"img":"rapplPendingImages"},
+  'appreciation-certificate': {"open":"openCertModal","save":"addCertEntry","f":{"grade":["rcert-grade","t"],"phrase":["rcert-phrase","t"],"phrase2":["rcert-phrase2","t"],"occasion":["rcert-occasion","t"],"date":["rcert-date","t"],"student":["rcert-student","t"]}},
+  'classroom-activity': {"open":"openActModal","save":"addActEntry","f":{"grade":["ract-grade","t"],"week":["ract-week","t"],"domain":["ract-domain","t"],"program":["ract-program","t"],"steps":["ract-steps","l"],"title":["ract-title","t"]},"c":{"goals":["ract-goal-",5,"ract-goal-custom"],"means":["ract-mean-",7,"ract-mean-custom"],"results":["ract-res-",5,"ract-res-custom"]},"img":"ractPendingImages"},
+  'classroom-strategy': {"open":"openStrategyModal","save":"addStrategyEntry","f":{"type":["rstrategy-type","t"],"grade":["rstrategy-grade","t"],"effectiveness":["rstrategy-effectiveness","t"],"desc":["rstrategy-desc","t"],"steps":["rstrategy-steps","l"],"impact":["rstrategy-impact","l"],"recommendations":["rstrategy-recommendations","l"],"title":["rstrategy-title","t"]},"img":"rstrategyPendingImages"},
+  'curriculum-plan': {"open":"openCurrplanModal","save":"addCurrplanEntry","f":{"subject":["rcurr-subject","t"],"grade":["rcurr-grade","t"],"semester":["rcurr-semester","t"],"year":["rcurr-year","t"],"weeks":["rcurr-weeks","l"],"notes":["rcurr-notes","l"],"title":["rcurr-title","t"]},"img":"rcurrPendingImages"},
+  'enrichment-plan': {"open":"openEnrichModal","save":"addEnrichEntry","f":{"subject":["renr-subject","t"],"grade":["renr-grade","t"],"semester":["renr-semester","t"],"date":["renr-date","t"],"skill":["renr-skill","t"],"students":["renr-students","l"],"activities":["renr-activities","l"],"followup":["renr-followup","l"],"title":["renr-title","t"]},"img":"renrPendingImages"},
+  'enrichment-plan-individual': {"open":"openEnrichStuModal","save":"addEnrichStuEntry","f":{"grade":["rens-grade","t"],"semester":["rens-semester","t"],"date":["rens-date","t"],"strengths":["rens-strengths","l"],"student":["rens-student","t"],"subject":["rens-subject","t"]},"c":{"methods":["rens-method-",4,"rens-method-custom"],"rewards":["rens-reward-",5,"rens-reward-custom"]},"x":{"methods":["rens-method-custom2"],"rewards":["rens-reward-custom2"]},"img":"rensPendingImages"},
+  'extra-activity': {"open":"openExtraModal","save":"addExtraEntry","f":{"domain":["rext-domain","t"],"time":["rext-time","t"],"parents":["rext-parents","t"],"students":["rext-students","t"],"special":["rext-special","t"],"beneficiaries":["rext-beneficiaries","t"],"desc":["rext-desc","t"],"notes":["rext-notes","t"],"title":["rext-title","t"]},"c":{"gather":["rext-gather-",5,"rext-gather-custom"],"line":["rext-line-",5,"rext-line-custom"],"recess":["rext-recess-",5,"rext-recess-custom"],"prayer":["rext-prayer-",5,"rext-prayer-custom"]},"img":"rextPendingImages"},
+  'learning-styles-report': {"open":"openLearningStylesModal","save":"addLearningStylesEntry","f":{"title":["rls-title","t"],"grade":["rls-grade","t"],"semester":["rls-semester","t"],"year":["rls-year","t"],"notes":["rls-notes","t"]}},
+  'parent-contact': {"open":"openParentModal","save":"addParentEntry","f":{"student":["rprnt-student","t"],"grade":["rprnt-grade","t"],"parent":["rprnt-parent","t"],"method":["rprnt-method","t"],"date":["rprnt-date","t"],"subject":["rprnt-subject","t"],"summary":["rprnt-summary","l"],"actions":["rprnt-actions","l"],"title":["rprnt-title","t"]},"img":"rprntPendingImages"},
+  'plc-log': {"open":"openPlcModal","save":"addPlcEntry","f":{"group":["rplc-group","t"],"facilitator":["rplc-facilitator","t"],"meetingNo":["rplc-meeting-no","t"],"date":["rplc-date","t"],"semester":["rplc-semester","t"],"topic":["rplc-topic","t"],"members":["rplc-members","l"],"goals":["rplc-goals","l"],"notes":["rplc-notes","l"],"title":["rplc-title","t"]},"img":"rplcPendingImages"},
+  'remedial-plan': {"open":"openRemedialModal","save":"addRemedialEntry","f":{"grade":["rrem-grade","t"],"semester":["rrem-semester","t"],"date":["rrem-date","t"],"improve":["rrem-improve","t"],"student":["rrem-student","t"],"subject":["rrem-subject","t"]},"c":{"weak":["rrem-weak-",9,"rrem-weak-custom"],"methods":["rrem-method-",10,"rrem-method-custom"],"actions":["rrem-action-",3,"rrem-action-custom"]},"x":{"weak":["rrem-weak-custom2"]},"img":"rremPendingImages"},
+  'school-radio': {"open":"openRadioModal","save":"addRadioEntry","f":{"date":["rrad-date","t"],"place":["rrad-place","t"],"time":["rrad-time","t"],"audience":["rrad-audience","t"],"desc":["rrad-desc","t"],"notes":["rrad-notes","t"],"goals":["rrad-goals","l"],"steps":["rrad-steps","l"],"segments":["rrad-segments","l"],"results":["rrad-results","l"],"recs":["rrad-recs","l"],"title":["rrad-title","t"]},"img":"rradPendingImages"},
+  'strategy-report': {"open":"openStratModal","save":"addStratEntry","f":{"name":["rstrat-name","t"],"subject":["rstrat-subject","t"],"grade":["rstrat-grade","t"],"date":["rstrat-date","t"],"semester":["rstrat-semester","t"],"unit":["rstrat-unit","t"],"goals":["rstrat-goals","l"],"steps":["rstrat-steps","l"],"results":["rstrat-results","l"],"title":["rstrat-title","t"]},"img":"rstratPendingImages"},
+  'student-honor': {"open":"openHonorModal","save":"addHonorEntry","f":{"occasion":["rhonor-occasion","t"],"semester":["rhonor-semester","t"],"date":["rhonor-date","t"],"students":["rhonor-students","l"],"desc":["rhonor-desc","l"],"title":["rhonor-title","t"]},"img":"rhonorPendingImages"},
+  'tech-tool-report': {"open":"openTechModal","save":"addTechEntry","f":{"subject":["rtech-subject","t"],"target":["rtech-target","t"],"time":["rtech-time","t"],"desc":["rtech-desc","t"],"steps":["rtech-steps","l"],"goals":["rtech-goals","l"],"recommendations":["rtech-recommendations","l"],"impact":["rtech-impact","l"],"title":["rtech-title","t"]},"img":"rtechPendingImages"},
+  'test-analysis': {"open":"openTestAnalysisModal","save":"addTestAnalysisEntry","f":{"examType":["rtan-examtype","t"],"title":["rtan-title","t"],"grade":["rtan-grade","t"],"semester":["rtan-semester","t"]}},
+  'test-results': {"open":"openTestresModal","save":"addTestresEntry","f":{"name":["rtest-name","t"],"subject":["rtest-subject","t"],"grade":["rtest-grade","t"],"semester":["rtest-semester","t"],"date":["rtest-date","t"],"count":["rtest-count","t"],"pass":["rtest-pass","t"],"avg":["rtest-avg","t"],"analysis":["rtest-analysis","l"],"actions":["rtest-actions","l"],"title":["rtest-title","t"]},"img":"rtestPendingImages"},
+  'visit-log': {"open":"openVisitModal","save":"addVisitEntry","f":{"visited":["rvisit-visited","t"],"subject":["rvisit-subject","t"],"date":["rvisit-date","t"],"grade":["rvisit-grade","t"],"semester":["rvisit-semester","t"],"unit":["rvisit-unit","t"],"visitors":["rvisit-visitors","l"],"goals":["rvisit-goals","l"],"title":["rvisit-title","t"]},"img":"rvisitPendingImages"},
+  'waiting-period': {"open":"openWaitModal","save":"addWaitEntry","f":{"date":["rwait-date","t"],"period":["rwait-period","t"],"grade":["rwait-grade","t"],"subject":["rwait-subject","t"],"activity":["rwait-activity","t"],"place":["rwait-place","t"],"goal":["rwait-goal","t"],"desc":["rwait-desc","t"],"notes":["rwait-notes","t"],"title":["rwait-title","t"]},"c":{"means":["rwait-mean-",9,"rwait-mean-custom"]},"img":"rwaitPendingImages"},
+  'workshop-attend': {"open":"openWsattModal","save":"addWsattEntry","f":{"provider":["rwsatt-provider","t"],"date":["rwsatt-date","t"],"duration":["rwsatt-duration","t"],"place":["rwsatt-place","t"],"positives":["rwsatt-positives","t"],"notes":["rwsatt-notes","t"],"program":["rwsatt-program","l"],"title":["rwsatt-title","t"]},"img":"rwsattPendingImages"},
+  'workshop-run': {"open":"openWsrunModal","save":"addWsrunEntry","f":{"date":["rwsrun-date","t"],"duration":["rwsrun-duration","t"],"place":["rwsrun-place","t"],"target":["rwsrun-target","t"],"count":["rwsrun-count","t"],"notes":["rwsrun-notes","t"],"goals":["rwsrun-goals","l"],"results":["rwsrun-results","l"],"axes":["rwsrun-axes","l"],"topic":["rwsrun-topic","t"]},"img":"rwsrunPendingImages"},
+};
+
+let rptEditingRef = null;   // {rptKey, entryId} أثناء التعديل، وإلا null
+
+/* هذان القالبان يبنيان تقريرهما من بيانات مرفوعة أو مُدخلة خارج حقول النموذج
+   (ملف إكسل لأنماط التعلّم، ودرجات الطلاب لتحليل النتائج). فتح النموذج
+   للتعديل يبدأ بحالة فارغة، فالحفظ إما يُرفض أو يُنتج تقريراً بلا بيانات.
+   استُبعدا صراحةً بدل ترك المعلّم في طريق مسدود. */
+const RPT_EDIT_BLOCKED = {
+  'learning-styles-report': 'يُبنى من ملف إكسل مرفوع — أعد إنشاءه من القالب.',
+  'test-analysis': 'يُبنى من درجات الطلاب المُدخلة — أعد إنشاءه من القالب.',
+};
+
+/* الحقول النصّية والقوائم */
+function rptFillFields(spec, entry){
+  Object.entries(spec.f || {}).forEach(([field, [domId, kind]]) => {
+    const el = document.getElementById(domId);
+    if(!el) return;
+    const v = entry[field];
+    el.value = kind === 'l'
+      ? (Array.isArray(v) ? v.join('\n') : (v == null ? '' : String(v)))
+      : (v == null ? '' : String(v));
+  });
+}
+
+/* مجموعات مربعات الاختيار: نؤشّر ما يطابق قيمه، وما لا يطابق أي مربع
+   نضعه في الحقل الحر — وإلا ضاع عند الحفظ. */
+function rptFillChecks(spec, entry){
+  Object.entries(spec.c || {}).forEach(([field, [prefix, count, customId]]) => {
+    const saved = Array.isArray(entry[field]) ? entry[field].slice() : [];
+    const leftover = saved.slice();
+    for(let i = 0; i < count; i++){
+      const cb = document.getElementById(prefix + i);
+      if(!cb) continue;
+      const hit = leftover.indexOf(cb.value);
+      cb.checked = hit >= 0;
+      if(hit >= 0) leftover.splice(hit, 1);
+    }
+    const extras = [customId].concat((spec.x && spec.x[field]) || []);
+    extras.forEach(id => { const el = document.getElementById(id); if(el) el.value = ''; });
+    extras.forEach(id => {
+      const el = document.getElementById(id);
+      if(el && leftover.length) el.value = leftover.shift();
+    });
+  });
+}
+
+function editLinkedReport(rptKey, entryId){
+  const spec = RPT_EDIT_MAP[rptKey];
+  const entry = rptEntries(rptKey).find(e => String(e.id) === String(entryId));
+  if(!spec || !entry || typeof window[spec.open] !== 'function'){
+    window.maeenAlert('تعذّر فتح التقرير للتعديل — ربما حُذف من القوالب.');
+    return;
+  }
+  closeLinkedReportPreview();
+  window[spec.open]();            // يفتح النموذج ويعيده للقيم الافتراضية
+  rptFillFields(spec, entry);     // ثم نملؤه من المُدخل المحفوظ
+  rptFillChecks(spec, entry);
+  if(spec.img && Array.isArray(entry.images)){
+    try{ window[spec.img] = entry.images.slice(); }catch(e){ console.error(e); }
+  }
+  /* الشهادة تشترط اختيار قالب قبل الحفظ، والقالب محفوظ في المُدخل */
+  if(rptKey === 'appreciation-certificate' && entry.template){
+    try{ certPendingTemplate = entry.template; certTemplateChosen = true; }
+    catch(e){ console.error(e); }
+  }
+  rptEditingRef = { rptKey, entryId: entry.id };
+  if(typeof window.maeenNotify === 'function'){
+    window.maeenNotify('أنت تعدّل تقريراً محفوظاً — الحفظ يستبدله ولا ينشئ نسخة جديدة.', 'success');
+  }
+}
+
+/* لفّ دوال الحفظ: أثناء التعديل تُستبدل النسخة القديمة بدل إضافة نسخة ثانية.
+   يُحتفظ بالمعرّف الأصلي كي يبقى ارتباط شاهد ملف الإنجاز (reportRef) صحيحاً. */
+Object.entries(RPT_EDIT_MAP).forEach(([rptKey, spec]) => {
+  const original = window[spec.save];
+  if(typeof original !== 'function') return;
+  window[spec.save] = function(){
+    const ref = rptEditingRef;
+    if(!ref || ref.rptKey !== rptKey) return original.apply(this, arguments);
+    const arr = rptEntries(rptKey);
+    const before = arr.length;
+    const oldIndex = arr.findIndex(e => String(e.id) === String(ref.entryId));
+    const result = original.apply(this, arguments);
+    if(arr.length !== before + 1 || oldIndex < 0) return result;  // فشل التحقق فلم يُحفظ
+    const fresh = arr.pop();
+    fresh.id = ref.entryId;                 // المعرّف يبقى كما هو
+    arr[oldIndex] = fresh;
+    rptEditingRef = null;
+    syncPortfolioEntryFromReport(rptKey, fresh);
+    persistRpt();
+    return result;
+  };
+});
+
+/* عنوان الشاهد وتاريخه في ملف الإنجاز مأخوذان من التقرير وقت الإرسال،
+   فيُحدَّثان معه وإلا بقي الشاهد يحمل العنوان القديم. */
+function syncPortfolioEntryFromReport(rptKey, fresh){
+  let touched = false;
+  Object.keys(state || {}).forEach(catId => {
+    const branch = state[catId];
+    const lists = Array.isArray(branch) ? [branch]
+      : (branch && typeof branch === 'object' ? Object.values(branch).filter(Array.isArray) : []);
+    lists.forEach(list => list.forEach(e => {
+      if(e && e.reportRef && e.reportRef.rptKey === rptKey && String(e.reportRef.entryId) === String(fresh.id)){
+        if(fresh.title) e.title = fresh.title;
+        if(fresh.date) e.date = fresh.date;
+        touched = true;
+      }
+    }));
+  });
+  if(touched) persist();
+}
+
+/* زر التعديل بجانب زر الطباعة في معاينة التقرير المرتبط */
+(() => {
+  const prev = window.previewLinkedReport;
+  if(typeof prev !== 'function') return;
+  window.previewLinkedReport = function(rptKey, entryId){
+    prev.apply(this, arguments);
+    const actions = document.querySelector('#linkedReportPreviewOverlay .modal-actions');
+    if(!actions) return;
+    let btn = actions.querySelector('.btn-edit-report');
+    let note = actions.parentElement.querySelector('.edit-report-note');
+    if(note) note.remove();
+    if(RPT_EDIT_BLOCKED[rptKey]){
+      if(btn) btn.remove();
+      note = document.createElement('div');
+      note.className = 'edit-report-note';
+      note.style.cssText = 'font-size:12px; color:var(--dim); margin-top:10px; text-align:center;';
+      note.textContent = 'تعديل هذا التقرير غير متاح: ' + RPT_EDIT_BLOCKED[rptKey];
+      actions.parentElement.insertBefore(note, actions);
+      return;
+    }
+    if(!RPT_EDIT_MAP[rptKey]){ if(btn) btn.remove(); return; }
+    if(!btn){
+      btn = document.createElement('button');
+      btn.className = 'btn-cancel btn-edit-report';
+      btn.textContent = 'تعديل التقرير';
+      actions.insertBefore(btn, actions.firstChild);
+    }
+    btn.onclick = () => editLinkedReport(rptKey, entryId);
+  };
+})();
+
+/* إغلاق نموذج القالب بلا حفظ يُنهي وضع التعديل، وإلا ظنّ الحفظ التالي أنه تعديل */
+window.addEventListener('click', (ev) => {
+  const t = ev.target;
+  if(t instanceof Element && t.closest('.btn-cancel') && !t.closest('.btn-edit-report')) rptEditingRef = null;
+}, true);
+</script>
 </body>
 </html>
