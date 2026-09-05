@@ -1956,8 +1956,8 @@ window.maeenAlert = function(message, tone){
     <div class="rep-field-label">النتائج (كل نتيجة في سطر مستقل)</div>
     <textarea id="rrad-results" rows="5"></textarea>
 
-    <div class="rep-field-label">التوصيات</div>
-    <textarea id="rrad-recs" rows="3"></textarea>
+    <div class="rep-field-label">التوصيات (كل توصية في سطر مستقل)</div>
+    <textarea id="rrad-recs" rows="4"></textarea>
 
     <div class="rep-field-label">ملاحظات (اختياري)</div>
     <textarea id="rrad-notes" rows="2"></textarea>
@@ -6134,6 +6134,13 @@ function removeShwImg(i){
   renderShwImgPreview();
 }
 
+/* حقول تحوّلت من نصّ إلى قائمة: التقارير المحفوظة قبل التحويل تحمل نصاً،
+   فتُقرأ كعنصر واحد بدل أن تنكسر. */
+function asList(v){
+  if(Array.isArray(v)) return v;
+  const t = String(v == null ? '' : v).trim();
+  return t ? [t] : [];
+}
 function linesOf(id){
   return document.getElementById(id).value.split('\n').map(s=>s.trim()).filter(Boolean);
 }
@@ -6513,7 +6520,7 @@ function openRadioModal(){
   document.getElementById('rrad-steps').value = '١. إعداد فقرات الإذاعة المدرسية وتوزيع الأدوار على الطلاب.\n٢. تدريب الطلاب على الإلقاء الجيد.\n٣. تنفيذ الإذاعة في طابور الصباح أمام مجتمع المدرسة.\n٤. توثيق الإذاعة ومتابعة أثرها على سلوك الطلاب.';
   document.getElementById('rrad-segments').value = '١. القرآن الكريم.\n٢. الحديث الشريف.\n٣. كلمة الصباح.\n٤. الحكمة.\n٥. هل تعلم.';
   document.getElementById('rrad-results').value = '١. مشاركة فعّالة من الطلاب في تقديم الفقرات.\n٢. تعزيز مهارات الإلقاء والثقة بالنفس.\n٣. نشر قيم إيجابية بين الطلاب.\n٤. تحسين روح العمل الجماعي بين الطلاب المشاركين.\n٥. زيادة الوعي بالقيم السلوكية والتربوية المطروحة.';
-  document.getElementById('rrad-recs').value = 'الحرص على مواصلة تقديم الإذاعة المدرسية بانتظام، وإتاحة الفرص المتنوعة للطلاب للمشاركة، بما يعزز دافعيتهم ويشجعهم على تنمية مهاراتهم وتطوير قدراتهم.';
+  document.getElementById('rrad-recs').value = '١. مواصلة تقديم الإذاعة المدرسية بانتظام.\n٢. إتاحة الفرصة لعدد أكبر من الطلاب للمشاركة.\n٣. تنويع موضوعات الإذاعة بما يخدم الخطة التربوية.';
   document.getElementById('rrad-notes').value = '';
   document.getElementById('rradImgPreview').innerHTML = '';
   document.getElementById('rrad-images').value = '';
@@ -6592,7 +6599,7 @@ function addRadioEntry(){
     steps: linesOf('rrad-steps'),
     segments: linesOf('rrad-segments'),
     results: linesOf('rrad-results'),
-    recs: document.getElementById('rrad-recs').value.trim(),
+    recs: linesOf('rrad-recs'),
     notes: document.getElementById('rrad-notes').value.trim(),
     images: rradPendingImages.slice()
   };
@@ -6681,7 +6688,7 @@ function buildRadioPageHtml(entry){
           <div class="rpt2-row2">
             <div class="rpt2-listbox">
               <div class="rpt2-flabel-row"><div class="rpt2-flabel">التوصيات</div><div class="rpt2-flabel-line"></div></div>
-              <div class="rpt2-stepsbox" style="border:none; padding:0;">${escapeHtml(entry.recs || '—')}</div>
+              <div class="rpt2-stepsbox" style="border:none; padding:0;">${numlist(asList(entry.recs))}</div>
             </div>
             <div class="rpt2-listbox">
               <div class="rpt2-flabel-row"><div class="rpt2-flabel">النتائج</div><div class="rpt2-flabel-line"></div></div>
