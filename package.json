@@ -1,9 +1,0 @@
-{
-  "name": "maeen-server",
-  "version": "1.0.0",
-  "private": true,
-  "dependencies": {
-    "@sparticuz/chromium": "latest",
-    "puppeteer-core": "latest"
-  }
-}

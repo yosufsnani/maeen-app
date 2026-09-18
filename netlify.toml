@@ -1,9 +1,0 @@
-[build]
-  functions = "netlify/functions"
-  publish = "."
-  ignore = "git diff --quiet HEAD^ HEAD -- netlify/functions package.json netlify.toml"
-
-[functions]
-  node_bundler = "esbuild"
-  external_node_modules = ["@sparticuz/chromium", "puppeteer-core"]
-  included_files = ["node_modules/@sparticuz/chromium/bin/**"]
