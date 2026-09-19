@@ -10,6 +10,7 @@ TELEGRAM_BOT_TOKEN = os.environ["TELEGRAM_BOT_TOKEN"]
 TELEGRAM_WEBHOOK_SECRET = os.environ["TELEGRAM_WEBHOOK_SECRET"]
 CRON_SECRET = os.environ["CRON_SECRET"]
 OPENROUTER_API_KEY = os.environ["OPENROUTER_API_KEY"]
+GEMINI_API_KEY = os.environ["GEMINI_API_KEY"]
 SUPABASE_URL = os.environ["SUPABASE_URL"]
 SUPABASE_KEY = os.environ["SUPABASE_KEY"]
 
@@ -40,12 +41,13 @@ MODEL_WORDS = ("/model", "الموديل", "موديل")
 REMIND_TRIGGER_WORDS = ("/remind", "تذكير", "ذكرني")
 
 AVAILABLE_MODELS = {
-    "qwen": "qwen/qwen3.8-27b:free",
-    "deepseek": "deepseek/deepseek-v4-flash-0731:free",
-    "glm": "z-ai/glm-5.2:free",
-    "gemma": "google/gemma-4-26b-a4b-it:free",
+    "gemini": {"provider": "gemini", "id": "gemini-2.0-flash"},
+    "qwen": {"provider": "openrouter", "id": "qwen/qwen3.8-27b:free"},
+    "deepseek": {"provider": "openrouter", "id": "deepseek/deepseek-v4-flash-0731:free"},
+    "glm": {"provider": "openrouter", "id": "z-ai/glm-5.2:free"},
+    "gemma": {"provider": "openrouter", "id": "google/gemma-4-26b-a4b-it:free"},
 }
-DEFAULT_MODEL_KEY = "deepseek"
+DEFAULT_MODEL_KEY = "gemini"
 
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
@@ -74,10 +76,10 @@ def edit_message_reply_markup(chat_id, message_id, reply_markup):
     )
 
 
-def build_model_keyboard(current_model):
+def build_model_keyboard(current_key):
     buttons = []
-    for key, model_id in AVAILABLE_MODELS.items():
-        label = f"{key} ✅" if model_id == current_model else key
+    for key in AVAILABLE_MODELS:
+        label = f"{key} ✅" if key == current_key else key
         buttons.append([{"text": label, "callback_data": f"model:{key}"}])
     return {"inline_keyboard": buttons}
 
@@ -98,18 +100,18 @@ def get_history(chat_id):
     return list(reversed(res.data))
 
 
-def get_model(chat_id):
+def get_model_key(chat_id):
     res = supabase.table("settings").select("model").eq("chat_id", chat_id).execute()
-    if res.data:
+    if res.data and res.data[0]["model"] in AVAILABLE_MODELS:
         return res.data[0]["model"]
-    return AVAILABLE_MODELS[DEFAULT_MODEL_KEY]
+    return DEFAULT_MODEL_KEY
 
 
-def set_model(chat_id, model_id):
-    supabase.table("settings").upsert({"chat_id": chat_id, "model": model_id}).execute()
+def set_model(chat_id, key):
+    supabase.table("settings").upsert({"chat_id": chat_id, "model": key}).execute()
 
 
-def ask_llm(chat_id, user_text):
+def ask_openrouter(chat_id, user_text, model_id):
     history = get_history(chat_id)
     messages = [{"role": "system", "content": SYSTEM_PROMPT}]
     messages += [{"role": m["role"], "content": m["content"]} for m in history]
@@ -118,11 +120,36 @@ def ask_llm(chat_id, user_text):
     resp = requests.post(
         "https://openrouter.ai/api/v1/chat/completions",
         headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}"},
-        json={"model": get_model(chat_id), "messages": messages},
+        json={"model": model_id, "messages": messages},
         timeout=60,
     )
     resp.raise_for_status()
     return resp.json()["choices"][0]["message"]["content"]
+
+
+def ask_gemini(chat_id, user_text, model_id):
+    history = get_history(chat_id)
+    contents = [
+        {"role": "model" if m["role"] == "assistant" else "user", "parts": [{"text": m["content"]}]}
+        for m in history
+    ]
+    contents.append({"role": "user", "parts": [{"text": user_text}]})
+
+    resp = requests.post(
+        f"https://generativelanguage.googleapis.com/v1beta/models/{model_id}:generateContent",
+        params={"key": GEMINI_API_KEY},
+        json={"contents": contents, "systemInstruction": {"parts": [{"text": SYSTEM_PROMPT}]}},
+        timeout=60,
+    )
+    resp.raise_for_status()
+    return resp.json()["candidates"][0]["content"]["parts"][0]["text"]
+
+
+def ask_llm(chat_id, user_text):
+    info = AVAILABLE_MODELS[get_model_key(chat_id)]
+    if info["provider"] == "gemini":
+        return ask_gemini(chat_id, user_text, info["id"])
+    return ask_openrouter(chat_id, user_text, info["id"])
 
 
 def parse_reminder(text):
@@ -173,9 +200,9 @@ def webhook():
         if data.startswith("model:"):
             key = data.split(":", 1)[1]
             if key in AVAILABLE_MODELS:
-                set_model(chat_id, AVAILABLE_MODELS[key])
+                set_model(chat_id, key)
                 answer_callback_query(callback["id"], text=f"تم اختيار {key}")
-                edit_message_reply_markup(chat_id, message_id, build_model_keyboard(AVAILABLE_MODELS[key]))
+                edit_message_reply_markup(chat_id, message_id, build_model_keyboard(key))
             else:
                 answer_callback_query(callback["id"], text="خيار غير معروف")
         return jsonify(ok=True)
@@ -208,14 +235,14 @@ def webhook():
     elif stripped.startswith(MODEL_WORDS):
         rest = strip_prefix(stripped, MODEL_WORDS)
         if not rest:
-            current = get_model(chat_id)
+            current = get_model_key(chat_id)
             send_message(chat_id, "اختر الموديل:", reply_markup=build_model_keyboard(current))
         else:
             choice = rest.lower()
             if choice not in AVAILABLE_MODELS:
                 send_message(chat_id, "اسم غير معروف. اكتب الموديل لعرض القائمة.")
             else:
-                set_model(chat_id, AVAILABLE_MODELS[choice])
+                set_model(chat_id, choice)
                 send_message(chat_id, f"تم تغيير الموديل إلى: {choice}")
     elif parsed_reminder is not None:
         seconds, reminder_text = parsed_reminder
