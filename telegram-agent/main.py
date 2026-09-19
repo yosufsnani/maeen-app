@@ -35,16 +35,23 @@ AR_UNIT_SECONDS = {
     "ساعة": 3600, "ساعه": 3600, "ساعات": 3600,
     "يوم": 86400, "ايام": 86400, "أيام": 86400,
 }
-START_WORDS = ("/start", "ابدأ", "بدء", "البداية")
-HELP_WORDS = ("/help", "مساعدة", "المساعدة", "الأوامر")
-MODEL_WORDS = ("/model", "الموديل", "موديل")
-REMIND_TRIGGER_WORDS = ("/remind", "تذكير", "ذكرني")
+def normalize_arabic(text):
+    return (
+        text.replace("أ", "ا").replace("إ", "ا").replace("آ", "ا")
+        .replace("ى", "ي").replace("ة", "ه")
+    )
+
+
+START_WORDS = tuple(normalize_arabic(w) for w in ("/start", "ابدأ", "بدء", "البداية"))
+HELP_WORDS = tuple(normalize_arabic(w) for w in ("/help", "مساعدة", "المساعدة", "الأوامر"))
+MODEL_WORDS = tuple(normalize_arabic(w) for w in ("/model", "الموديل", "موديل"))
+REMIND_TRIGGER_WORDS = tuple(normalize_arabic(w) for w in ("/remind", "تذكير", "ذكرني"))
 
 AVAILABLE_MODELS = {
-    "gemini": {"provider": "gemini", "id": "gemini-2.0-flash"},
     "gptoss": {"provider": "groq", "id": "openai/gpt-oss-120b"},
+    "gemini": {"provider": "gemini", "id": "gemini-2.0-flash"},
 }
-DEFAULT_MODEL_KEY = "gemini"
+DEFAULT_MODEL_KEY = "gptoss"
 
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
@@ -211,7 +218,7 @@ def webhook():
     if not chat_id or not text:
         return jsonify(ok=True)
 
-    stripped = text.strip()
+    stripped = normalize_arabic(text.strip())
     parsed_reminder = parse_reminder(text)
 
     if stripped.startswith(START_WORDS):
