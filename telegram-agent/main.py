@@ -1,9 +1,12 @@
+import base64
+import io
 import os
 import re
 from datetime import datetime, timedelta, timezone
 
 import requests
 from flask import Flask, request, jsonify
+from pypdf import PdfReader
 from supabase import create_client
 
 TELEGRAM_BOT_TOKEN = os.environ["TELEGRAM_BOT_TOKEN"]
@@ -281,23 +284,55 @@ def search_web(chat_id, query):
     return ask_llm(chat_id, prompt)
 
 
-def transcribe_voice(file_id):
+def download_telegram_file(file_id):
     file_resp = requests.get(f"{TELEGRAM_API}/getFile", params={"file_id": file_id}, timeout=15)
     file_resp.raise_for_status()
     file_path = file_resp.json()["result"]["file_path"]
 
-    audio_resp = requests.get(f"{TELEGRAM_FILE_API}/{file_path}", timeout=30)
-    audio_resp.raise_for_status()
+    content_resp = requests.get(f"{TELEGRAM_FILE_API}/{file_path}", timeout=30)
+    content_resp.raise_for_status()
+    return content_resp.content
+
+
+def transcribe_voice(file_id):
+    audio_bytes = download_telegram_file(file_id)
 
     resp = requests.post(
         "https://api.groq.com/openai/v1/audio/transcriptions",
         headers={"Authorization": f"Bearer {GROQ_API_KEY}"},
-        files={"file": ("voice.ogg", audio_resp.content, "audio/ogg")},
+        files={"file": ("voice.ogg", audio_bytes, "audio/ogg")},
         data={"model": "whisper-large-v3", "language": "ar"},
         timeout=60,
     )
     resp.raise_for_status()
     return resp.json().get("text", "").strip()
+
+
+def ask_gemini_vision(chat_id, prompt_text, file_bytes, mime_type):
+    system_prompt = build_system_prompt(chat_id)
+    resp = requests.post(
+        "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent",
+        params={"key": GEMINI_API_KEY},
+        json={
+            "contents": [{
+                "role": "user",
+                "parts": [
+                    {"text": prompt_text},
+                    {"inline_data": {"mime_type": mime_type, "data": base64.b64encode(file_bytes).decode()}},
+                ],
+            }],
+            "systemInstruction": {"parts": [{"text": system_prompt}]},
+        },
+        timeout=60,
+    )
+    resp.raise_for_status()
+    return resp.json()["candidates"][0]["content"]["parts"][0]["text"]
+
+
+def extract_pdf_text(file_bytes):
+    reader = PdfReader(io.BytesIO(file_bytes))
+    text = "\n".join(page.extract_text() or "" for page in reader.pages)
+    return text[:15000]
 
 
 def parse_reminder(text):
@@ -375,6 +410,7 @@ def handle_text(chat_id, text):
             "ملاحظة <نص> — لحفظ معلومة\n"
             "مهمة <نص> — لإضافة مهمة\n"
             "بحث <سؤال> — للبحث بالإنترنت\n"
+            "أرسل صورة أو ملف PDF وأنا أقراه وأجاوبك عليه\n"
             "الموديل — لتغيير الموديل",
         )
     elif stripped.startswith(HELP_WORDS):
@@ -386,7 +422,7 @@ def handle_text(chat_id, text):
             "مهمة <نص> / مهامي / تم <رقم>\n"
             "بحث <سؤال> — للبحث بالإنترنت\n"
             "الموديل — لعرض/تغيير الموديل\n"
-            "تقدر كمان ترسل رسالة صوتية",
+            "تقدر كمان ترسل رسالة صوتية، أو صورة، أو ملف PDF",
         )
     elif stripped.startswith(MODEL_WORDS):
         rest = strip_prefix(stripped, MODEL_WORDS)
@@ -487,12 +523,29 @@ def webhook():
 
     text = message.get("text")
     voice = message.get("voice")
+    photo = message.get("photo")
+    document = message.get("document")
 
     if not text and voice:
         text = transcribe_voice(voice["file_id"])
         if not text:
             send_message(chat_id, "تعذر فهم الرسالة الصوتية")
             return jsonify(ok=True)
+
+    if not text and photo:
+        image_bytes = download_telegram_file(photo[-1]["file_id"])
+        prompt = message.get("caption") or "صف هذي الصورة واشرح لي وش فيها"
+        reply = ask_gemini_vision(chat_id, prompt, image_bytes, "image/jpeg")
+        send_message(chat_id, reply)
+        return jsonify(ok=True)
+
+    if not text and document and document.get("mime_type") == "application/pdf":
+        pdf_bytes = download_telegram_file(document["file_id"])
+        pdf_text = extract_pdf_text(pdf_bytes)
+        question = message.get("caption") or "لخص لي محتوى هذا الملف"
+        reply = ask_llm(chat_id, f"محتوى الملف:\n{pdf_text}\n\nسؤال المستخدم: {question}\n\nجاوب بالاعتماد على محتوى الملف.")
+        send_message(chat_id, reply)
+        return jsonify(ok=True)
 
     if not text:
         return jsonify(ok=True)
