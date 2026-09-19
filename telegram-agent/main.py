@@ -49,7 +49,7 @@ REMIND_TRIGGER_WORDS = tuple(normalize_arabic(w) for w in ("/remind", "تذكي�
 
 AVAILABLE_MODELS = {
     "gptoss": {"provider": "groq", "id": "openai/gpt-oss-120b"},
-    "gemini": {"provider": "gemini", "id": "gemini-2.0-flash"},
+    "gemini": {"provider": "gemini", "id": "gemini-3.5-flash-lite"},
 }
 DEFAULT_MODEL_KEY = "gptoss"
 
