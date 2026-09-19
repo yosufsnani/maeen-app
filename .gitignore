@@ -1,2 +1,5 @@
 node_modules/
 .design-maeen/
+__pycache__/
+*.pyc
+.env
