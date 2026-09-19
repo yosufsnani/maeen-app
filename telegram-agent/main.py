@@ -42,7 +42,7 @@ REMIND_TRIGGER_WORDS = ("/remind", "تذكير", "ذكرني")
 
 AVAILABLE_MODELS = {
     "gemini": {"provider": "gemini", "id": "gemini-2.0-flash"},
-    "llama": {"provider": "groq", "id": "llama-3.3-70b-versatile"},
+    "gptoss": {"provider": "groq", "id": "openai/gpt-oss-120b"},
 }
 DEFAULT_MODEL_KEY = "gemini"
 
