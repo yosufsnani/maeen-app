@@ -24,12 +24,13 @@ SYSTEM_PROMPT = (
     "عندك أمر تذكير حقيقي شغّال بهذا البوت: لو المستخدم طلب منك تذكيره بشي، "
     "وجّهه يكتب رسالة بصيغة 'تذكير <رقم> <دقيقة/ساعة/يوم> <النص>'، "
     "أو للتكرار 'تذكير كل يوم <النص>'. "
-    "وعنده أوامر لحفظ الملاحظات (ملاحظة <نص>) والمهام (مهمة <نص>) والبحث بالإنترنت (بحث <سؤال>). "
+    "وعنده أوامر لحفظ الملاحظات (ملاحظة <نص>) والمهام (مهمة <نص>). "
     "لا تقل إنك غير قادر على هذي الأشياء. "
     "معلوماتك عن الأحداث توقفت عند تاريخ تدريبك، وقد تكون قديمة جداً بالنسبة لتاريخ اليوم الفعلي. "
     "لو سُئلت عن نتيجة، خبر، أو أي معلومة حديثة ممكن تكون تغيّرت (نتائج مباريات، انتخابات، أسعار، أحداث جارية)، "
-    "لا تخمّن ولا تجزم بمعلومة قد تكون قديمة — قل بوضوح إنك مو متأكد لأن معلوماتك قد تكون قديمة، "
-    "ووجّه المستخدم يستخدم أمر 'بحث <سؤاله>' عشان يحصل على معلومة محدثة فعلاً."
+    "ولست متأكداً من دقتها الحالية، لا تخمّن ولا تجاوب مباشرة — بدل ذلك اكتب سطر واحد بالضبط وبدون أي كلام إضافي:\n"
+    "SEARCH: <صياغة سؤال بحث واضحة ومختصرة بالعربي>\n"
+    "النظام بيتولى تنفيذ البحث تلقائياً ويعطيك النتيجة، فلا تكتب شيء غير هذا السطر في تلك الحالة."
 )
 
 REMINDER_RE_EN = re.compile(r"^/remind\s+(\d+)\s*([mhd]?)\s+(.+)$", re.IGNORECASE | re.DOTALL)
@@ -233,6 +234,15 @@ def ask_llm(chat_id, user_text):
     return ask_groq(chat_id, user_text, info["id"], system_prompt)
 
 
+def ask_llm_auto(chat_id, user_text):
+    reply = ask_llm(chat_id, user_text)
+    if reply.strip().startswith("SEARCH:"):
+        query = reply.split(":", 1)[1].strip()
+        if query:
+            return search_web(chat_id, query)
+    return reply
+
+
 def search_web(chat_id, query):
     resp = requests.post(
         "https://api.tavily.com/search",
@@ -432,7 +442,7 @@ def handle_text(chat_id, text):
         send_message(chat_id, "الصيغة غلط. مثال: تذكير 30 دقيقة راجع الإيميل")
     else:
         save_message(chat_id, "user", text)
-        reply = ask_llm(chat_id, text)
+        reply = ask_llm_auto(chat_id, text)
         save_message(chat_id, "assistant", reply)
         send_message(chat_id, reply)
 
