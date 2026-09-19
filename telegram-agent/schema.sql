@@ -18,3 +18,9 @@ create table if not exists reminders (
   created_at timestamptz not null default now()
 );
 create index if not exists reminders_due_idx on reminders (due_at) where sent = false;
+
+create table if not exists settings (
+  chat_id bigint primary key,
+  model text not null,
+  updated_at timestamptz not null default now()
+);

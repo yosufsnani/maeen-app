@@ -10,7 +10,6 @@ TELEGRAM_BOT_TOKEN = os.environ["TELEGRAM_BOT_TOKEN"]
 TELEGRAM_WEBHOOK_SECRET = os.environ["TELEGRAM_WEBHOOK_SECRET"]
 CRON_SECRET = os.environ["CRON_SECRET"]
 OPENROUTER_API_KEY = os.environ["OPENROUTER_API_KEY"]
-OPENROUTER_MODEL = os.environ.get("OPENROUTER_MODEL", "nousresearch/hermes-3-llama-3.1-405b:free")
 SUPABASE_URL = os.environ["SUPABASE_URL"]
 SUPABASE_KEY = os.environ["SUPABASE_KEY"]
 
@@ -22,6 +21,14 @@ SYSTEM_PROMPT = (
 )
 REMINDER_RE = re.compile(r"^/remind\s+(\d+)\s*([mhd]?)\s+(.+)$", re.IGNORECASE | re.DOTALL)
 UNIT_SECONDS = {"m": 60, "h": 3600, "d": 86400, "": 60}
+
+AVAILABLE_MODELS = {
+    "qwen": "qwen/qwen3.8-27b:free",
+    "deepseek": "deepseek/deepseek-v4-flash-0731:free",
+    "glm": "z-ai/glm-5.2:free",
+    "gemma": "google/gemma-4-26b-a4b-it:free",
+}
+DEFAULT_MODEL_KEY = "deepseek"
 
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
@@ -48,6 +55,17 @@ def get_history(chat_id):
     return list(reversed(res.data))
 
 
+def get_model(chat_id):
+    res = supabase.table("settings").select("model").eq("chat_id", chat_id).execute()
+    if res.data:
+        return res.data[0]["model"]
+    return AVAILABLE_MODELS[DEFAULT_MODEL_KEY]
+
+
+def set_model(chat_id, model_id):
+    supabase.table("settings").upsert({"chat_id": chat_id, "model": model_id}).execute()
+
+
 def ask_llm(chat_id, user_text):
     history = get_history(chat_id)
     messages = [{"role": "system", "content": SYSTEM_PROMPT}]
@@ -57,7 +75,7 @@ def ask_llm(chat_id, user_text):
     resp = requests.post(
         "https://openrouter.ai/api/v1/chat/completions",
         headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}"},
-        json={"model": OPENROUTER_MODEL, "messages": messages},
+        json={"model": get_model(chat_id), "messages": messages},
         timeout=60,
     )
     resp.raise_for_status()
@@ -97,9 +115,25 @@ def webhook():
         return jsonify(ok=True)
 
     if text.startswith("/start"):
-        send_message(chat_id, "أهلاً! تكلم معي عادي، أو استخدم:\n/remind 10m اشرب مويه\n/remind 2h اتصل بأحمد")
+        send_message(chat_id, "أهلاً! تكلم معي عادي، أو استخدم:\n/remind 10m اشرب مويه\n/remind 2h اتصل بأحمد\n/model لتغيير الموديل")
     elif text.startswith("/help"):
-        send_message(chat_id, "الصيغة: /remind <رقم><m أو h أو d> <النص>\nمثال: /remind 30m راجع الإيميل")
+        send_message(chat_id, "الصيغة: /remind <رقم><m أو h أو d> <النص>\nمثال: /remind 30m راجع الإيميل\n\n/model لعرض/تغيير الموديل")
+    elif text.startswith("/model"):
+        parts = text.split(maxsplit=1)
+        if len(parts) == 1:
+            current = get_model(chat_id)
+            lines = ["اكتب /model متبوعاً باسم الموديل، مثال: /model qwen", ""]
+            for key, model_id in AVAILABLE_MODELS.items():
+                marker = " ✅" if model_id == current else ""
+                lines.append(f"{key}{marker}")
+            send_message(chat_id, "\n".join(lines))
+        else:
+            choice = parts[1].strip().lower()
+            if choice not in AVAILABLE_MODELS:
+                send_message(chat_id, "اسم غير معروف. اكتب /model لعرض القائمة.")
+            else:
+                set_model(chat_id, AVAILABLE_MODELS[choice])
+                send_message(chat_id, f"تم تغيير الموديل إلى: {choice}")
     elif text.startswith("/remind"):
         parsed = parse_reminder(text)
         if not parsed:
