@@ -50,6 +50,14 @@ AR_UNIT_SECONDS = {
 }
 TASK_DONE_RE = re.compile(r"^تم\s+(\d+)$")
 
+SAUDI_TZ = timezone(timedelta(hours=3))
+ARABIC_WEEKDAYS = ["الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت", "الأحد"]
+
+
+def today_str():
+    now = datetime.now(SAUDI_TZ)
+    return f"{ARABIC_WEEKDAYS[now.weekday()]} {now.strftime('%Y-%m-%d')}"
+
 
 def normalize_arabic(text):
     return (
@@ -176,8 +184,7 @@ def complete_task(chat_id, task_number):
 
 
 def build_system_prompt(chat_id):
-    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    prompt = SYSTEM_PROMPT + f"\n\nتاريخ اليوم الفعلي هو {today}. اعتمد على هذا التاريخ دائماً، لا على افتراضاتك الداخلية عن الوقت الحالي."
+    prompt = SYSTEM_PROMPT + f"\n\nتاريخ اليوم الفعلي هو {today_str()} (بتوقيت السعودية). اعتمد على هذا التاريخ ويوم الأسبوع هذا دائماً، لا على افتراضاتك الداخلية أو حساباتك الخاصة عن الوقت الحالي."
     notes = get_notes(chat_id)
     if notes:
         prompt += "\n\nمعلومات محفوظة عن المستخدم:\n" + "\n".join(f"- {n}" for n in notes)
@@ -245,9 +252,8 @@ def search_web(chat_id, query):
     snippets = "\n\n".join(
         f"({i + 1}) {r['title']}\n{(r.get('content') or '')[:500]}" for i, r in enumerate(results)
     )
-    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     prompt = (
-        f"تاريخ اليوم الفعلي: {today}. سؤال المستخدم: {query}\n\n"
+        f"تاريخ اليوم الفعلي: {today_str()} (بتوقيت السعودية). سؤال المستخدم: {query}\n\n"
         f"نتائج بحث بالإنترنت:\n{snippets}\n\n"
         "جاوب على سؤال المستخدم بالعربي، بشكل مباشر ومختصر، بالاعتماد على هذي النتائج فقط "
         "(لا على معلوماتك السابقة عن التاريخ أو الأحداث)."
