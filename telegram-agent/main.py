@@ -220,29 +220,33 @@ def ask_llm(chat_id, user_text):
     return ask_groq(chat_id, user_text, info["id"], system_prompt)
 
 
-def search_web(query):
+def search_web(chat_id, query):
     resp = requests.post(
         "https://api.tavily.com/search",
         json={
             "api_key": TAVILY_API_KEY,
             "query": query,
-            "include_answer": True,
-            "max_results": 3,
+            "search_depth": "advanced",
+            "max_results": 5,
         },
         timeout=30,
     )
     resp.raise_for_status()
-    data = resp.json()
+    results = resp.json().get("results") or []
+    if not results:
+        return "ما لقيت نتائج"
 
-    lines = []
-    if data.get("answer"):
-        lines.append(data["answer"])
-    sources = data.get("results") or []
-    if sources:
-        lines.append("")
-        lines.append("المصادر:")
-        lines += [f"- {s['title']}: {s['url']}" for s in sources[:3]]
-    return "\n".join(lines) if lines else "ما لقيت نتائج"
+    snippets = "\n\n".join(
+        f"({i + 1}) {r['title']}\n{(r.get('content') or '')[:500]}" for i, r in enumerate(results)
+    )
+    prompt = (
+        f"سؤال المستخدم: {query}\n\n"
+        f"نتائج بحث بالإنترنت:\n{snippets}\n\n"
+        "جاوب على سؤال المستخدم بالعربي، بشكل مباشر ومختصر، بالاعتماد على هذي النتائج فقط."
+    )
+    answer = ask_llm(chat_id, prompt)
+    sources = "\n".join(f"- {r['title']}: {r['url']}" for r in results[:3])
+    return f"{answer}\n\nالمصادر:\n{sources}"
 
 
 def transcribe_voice(file_id):
@@ -401,7 +405,7 @@ def handle_text(chat_id, text):
         if not query:
             send_message(chat_id, "اكتب: بحث <سؤالك>")
         else:
-            send_message(chat_id, search_web(query))
+            send_message(chat_id, search_web(chat_id, query))
     elif parsed_recurring is not None:
         seconds, reminder_text = parsed_recurring
         due_at = create_reminder(chat_id, seconds, reminder_text, repeat_seconds=seconds)
