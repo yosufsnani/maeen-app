@@ -24,3 +24,22 @@ create table if not exists settings (
   model text not null,
   updated_at timestamptz not null default now()
 );
+
+alter table reminders add column if not exists repeat_seconds bigint;
+
+create table if not exists notes (
+  id bigint generated always as identity primary key,
+  chat_id bigint not null,
+  content text not null,
+  created_at timestamptz not null default now()
+);
+create index if not exists notes_chat_id_idx on notes (chat_id, created_at);
+
+create table if not exists tasks (
+  id bigint generated always as identity primary key,
+  chat_id bigint not null,
+  content text not null,
+  done boolean not null default false,
+  created_at timestamptz not null default now()
+);
+create index if not exists tasks_chat_id_idx on tasks (chat_id, created_at);
