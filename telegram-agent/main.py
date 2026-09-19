@@ -2,7 +2,6 @@ import os
 import re
 from datetime import datetime, timedelta, timezone
 
-import google.generativeai as genai
 import requests
 from flask import Flask, request, jsonify
 from supabase import create_client
@@ -10,8 +9,8 @@ from supabase import create_client
 TELEGRAM_BOT_TOKEN = os.environ["TELEGRAM_BOT_TOKEN"]
 TELEGRAM_WEBHOOK_SECRET = os.environ["TELEGRAM_WEBHOOK_SECRET"]
 CRON_SECRET = os.environ["CRON_SECRET"]
-GEMINI_API_KEY = os.environ["GEMINI_API_KEY"]
-GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.0-flash")
+OPENROUTER_API_KEY = os.environ["OPENROUTER_API_KEY"]
+OPENROUTER_MODEL = os.environ.get("OPENROUTER_MODEL", "nousresearch/hermes-3-llama-3.1-405b:free")
 SUPABASE_URL = os.environ["SUPABASE_URL"]
 SUPABASE_KEY = os.environ["SUPABASE_KEY"]
 
@@ -24,8 +23,6 @@ SYSTEM_PROMPT = (
 REMINDER_RE = re.compile(r"^/remind\s+(\d+)\s*([mhd]?)\s+(.+)$", re.IGNORECASE | re.DOTALL)
 UNIT_SECONDS = {"m": 60, "h": 3600, "d": 86400, "": 60}
 
-genai.configure(api_key=GEMINI_API_KEY)
-model = genai.GenerativeModel(GEMINI_MODEL, system_instruction=SYSTEM_PROMPT)
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 app = Flask(__name__)
@@ -51,15 +48,20 @@ def get_history(chat_id):
     return list(reversed(res.data))
 
 
-def ask_gemini(chat_id, user_text):
+def ask_llm(chat_id, user_text):
     history = get_history(chat_id)
-    gemini_history = [
-        {"role": "model" if m["role"] == "assistant" else "user", "parts": [m["content"]]}
-        for m in history
-    ]
-    chat = model.start_chat(history=gemini_history)
-    reply = chat.send_message(user_text)
-    return reply.text
+    messages = [{"role": "system", "content": SYSTEM_PROMPT}]
+    messages += [{"role": m["role"], "content": m["content"]} for m in history]
+    messages.append({"role": "user", "content": user_text})
+
+    resp = requests.post(
+        "https://openrouter.ai/api/v1/chat/completions",
+        headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}"},
+        json={"model": OPENROUTER_MODEL, "messages": messages},
+        timeout=60,
+    )
+    resp.raise_for_status()
+    return resp.json()["choices"][0]["message"]["content"]
 
 
 def parse_reminder(text):
@@ -108,7 +110,7 @@ def webhook():
             send_message(chat_id, f"تمام، بذكّرك الساعة {due_at.strftime('%H:%M UTC')} بـ: {reminder_text}")
     else:
         save_message(chat_id, "user", text)
-        reply = ask_gemini(chat_id, text)
+        reply = ask_llm(chat_id, text)
         save_message(chat_id, "assistant", reply)
         send_message(chat_id, reply)
 
