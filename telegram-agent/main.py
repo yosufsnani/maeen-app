@@ -9,7 +9,7 @@ from supabase import create_client
 TELEGRAM_BOT_TOKEN = os.environ["TELEGRAM_BOT_TOKEN"]
 TELEGRAM_WEBHOOK_SECRET = os.environ["TELEGRAM_WEBHOOK_SECRET"]
 CRON_SECRET = os.environ["CRON_SECRET"]
-OPENROUTER_API_KEY = os.environ["OPENROUTER_API_KEY"]
+GROQ_API_KEY = os.environ["GROQ_API_KEY"]
 GEMINI_API_KEY = os.environ["GEMINI_API_KEY"]
 SUPABASE_URL = os.environ["SUPABASE_URL"]
 SUPABASE_KEY = os.environ["SUPABASE_KEY"]
@@ -42,10 +42,7 @@ REMIND_TRIGGER_WORDS = ("/remind", "تذكير", "ذكرني")
 
 AVAILABLE_MODELS = {
     "gemini": {"provider": "gemini", "id": "gemini-2.0-flash"},
-    "qwen": {"provider": "openrouter", "id": "qwen/qwen3.8-27b:free"},
-    "deepseek": {"provider": "openrouter", "id": "deepseek/deepseek-v4-flash-0731:free"},
-    "glm": {"provider": "openrouter", "id": "z-ai/glm-5.2:free"},
-    "gemma": {"provider": "openrouter", "id": "google/gemma-4-26b-a4b-it:free"},
+    "llama": {"provider": "groq", "id": "llama-3.3-70b-versatile"},
 }
 DEFAULT_MODEL_KEY = "gemini"
 
@@ -111,15 +108,15 @@ def set_model(chat_id, key):
     supabase.table("settings").upsert({"chat_id": chat_id, "model": key}).execute()
 
 
-def ask_openrouter(chat_id, user_text, model_id):
+def ask_groq(chat_id, user_text, model_id):
     history = get_history(chat_id)
     messages = [{"role": "system", "content": SYSTEM_PROMPT}]
     messages += [{"role": m["role"], "content": m["content"]} for m in history]
     messages.append({"role": "user", "content": user_text})
 
     resp = requests.post(
-        "https://openrouter.ai/api/v1/chat/completions",
-        headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}"},
+        "https://api.groq.com/openai/v1/chat/completions",
+        headers={"Authorization": f"Bearer {GROQ_API_KEY}"},
         json={"model": model_id, "messages": messages},
         timeout=60,
     )
@@ -149,7 +146,7 @@ def ask_llm(chat_id, user_text):
     info = AVAILABLE_MODELS[get_model_key(chat_id)]
     if info["provider"] == "gemini":
         return ask_gemini(chat_id, user_text, info["id"])
-    return ask_openrouter(chat_id, user_text, info["id"])
+    return ask_groq(chat_id, user_text, info["id"])
 
 
 def parse_reminder(text):
