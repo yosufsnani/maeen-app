@@ -172,10 +172,12 @@ def complete_task(chat_id, task_number):
 
 
 def build_system_prompt(chat_id):
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    prompt = SYSTEM_PROMPT + f"\n\nتاريخ اليوم الفعلي هو {today}. اعتمد على هذا التاريخ دائماً، لا على افتراضاتك الداخلية عن الوقت الحالي."
     notes = get_notes(chat_id)
-    if not notes:
-        return SYSTEM_PROMPT
-    return SYSTEM_PROMPT + "\n\nمعلومات محفوظة عن المستخدم:\n" + "\n".join(f"- {n}" for n in notes)
+    if notes:
+        prompt += "\n\nمعلومات محفوظة عن المستخدم:\n" + "\n".join(f"- {n}" for n in notes)
+    return prompt
 
 
 def ask_groq(chat_id, user_text, model_id, system_prompt):
@@ -239,10 +241,12 @@ def search_web(chat_id, query):
     snippets = "\n\n".join(
         f"({i + 1}) {r['title']}\n{(r.get('content') or '')[:500]}" for i, r in enumerate(results)
     )
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     prompt = (
-        f"سؤال المستخدم: {query}\n\n"
+        f"تاريخ اليوم الفعلي: {today}. سؤال المستخدم: {query}\n\n"
         f"نتائج بحث بالإنترنت:\n{snippets}\n\n"
-        "جاوب على سؤال المستخدم بالعربي، بشكل مباشر ومختصر، بالاعتماد على هذي النتائج فقط."
+        "جاوب على سؤال المستخدم بالعربي، بشكل مباشر ومختصر، بالاعتماد على هذي النتائج فقط "
+        "(لا على معلوماتك السابقة عن التاريخ أو الأحداث)."
     )
     answer = ask_llm(chat_id, prompt)
     sources = "\n".join(f"- {r['title']}: {r['url']}" for r in results[:3])
