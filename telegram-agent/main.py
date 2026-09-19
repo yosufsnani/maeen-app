@@ -258,7 +258,12 @@ def search_web(chat_id, query):
         resp.raise_for_status()
         results = resp.json().get("results") or []
     except requests.exceptions.RequestException:
-        return "تعذر البحث بالإنترنت حالياً (يمكن انتهت حصة البحث المجانية لهذا الشهر). جرب لاحقاً."
+        fallback_prompt = (
+            f"تعذر الوصول لخدمة البحث الآن. سؤال المستخدم: {query}\n\n"
+            "جاوب من معلوماتك المتوفرة رغم إنها ممكن تكون قديمة أو غير دقيقة، "
+            "ونبّه المستخدم بوضوح في بداية ردك إن البحث ما كان متاح وإن المعلومة ممكن تكون قديمة."
+        )
+        return ask_llm(chat_id, fallback_prompt)
 
     if not results:
         return "ما لقيت نتائج"
