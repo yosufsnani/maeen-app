@@ -244,18 +244,22 @@ def ask_llm_auto(chat_id, user_text):
 
 
 def search_web(chat_id, query):
-    resp = requests.post(
-        "https://api.tavily.com/search",
-        json={
-            "api_key": TAVILY_API_KEY,
-            "query": query,
-            "search_depth": "advanced",
-            "max_results": 5,
-        },
-        timeout=30,
-    )
-    resp.raise_for_status()
-    results = resp.json().get("results") or []
+    try:
+        resp = requests.post(
+            "https://api.tavily.com/search",
+            json={
+                "api_key": TAVILY_API_KEY,
+                "query": query,
+                "search_depth": "advanced",
+                "max_results": 5,
+            },
+            timeout=30,
+        )
+        resp.raise_for_status()
+        results = resp.json().get("results") or []
+    except requests.exceptions.RequestException:
+        return "تعذر البحث بالإنترنت حالياً (يمكن انتهت حصة البحث المجانية لهذا الشهر). جرب لاحقاً."
+
     if not results:
         return "ما لقيت نتائج"
 
