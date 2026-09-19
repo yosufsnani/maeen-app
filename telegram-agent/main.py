@@ -17,10 +17,27 @@ TELEGRAM_API = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}"
 HISTORY_LIMIT = 20
 SYSTEM_PROMPT = (
     "أنت مساعد شخصي ذكي يتحدث العربية بشكل طبيعي ومختصر. "
-    "استخدم سياق المحادثة السابقة للرد بما يناسب المستخدم."
+    "استخدم سياق المحادثة السابقة للرد بما يناسب المستخدم. "
+    "عندك أمر تذكير حقيقي شغّال بهذا البوت: لو المستخدم طلب منك تذكيره بشي، "
+    "وجّهه يكتب رسالة بصيغة 'تذكير <رقم> <دقيقة/ساعة/يوم> <النص>'، "
+    "مثال: 'تذكير 10 دقايق اشرب مويه'. لا تقل إنك غير قادر على التذكير."
 )
-REMINDER_RE = re.compile(r"^/remind\s+(\d+)\s*([mhd]?)\s+(.+)$", re.IGNORECASE | re.DOTALL)
+REMINDER_RE_EN = re.compile(r"^/remind\s+(\d+)\s*([mhd]?)\s+(.+)$", re.IGNORECASE | re.DOTALL)
 UNIT_SECONDS = {"m": 60, "h": 3600, "d": 86400, "": 60}
+
+REMINDER_RE_AR = re.compile(
+    r"^(?:تذكير|ذكرني)\s+(?:بعد\s+)?(\d+)\s+(دقيقة|دقيقه|دقائق|دقايق|ساعة|ساعه|ساعات|يوم|ايام|أيام)\s+(.+)$",
+    re.DOTALL,
+)
+AR_UNIT_SECONDS = {
+    "دقيقة": 60, "دقيقه": 60, "دقائق": 60, "دقايق": 60,
+    "ساعة": 3600, "ساعه": 3600, "ساعات": 3600,
+    "يوم": 86400, "ايام": 86400, "أيام": 86400,
+}
+START_WORDS = ("/start", "ابدأ", "بدء", "البداية")
+HELP_WORDS = ("/help", "مساعدة", "المساعدة", "الأوامر")
+MODEL_WORDS = ("/model", "الموديل", "موديل")
+REMIND_TRIGGER_WORDS = ("/remind", "تذكير", "ذكرني")
 
 AVAILABLE_MODELS = {
     "qwen": "qwen/qwen3.8-27b:free",
@@ -109,12 +126,26 @@ def ask_llm(chat_id, user_text):
 
 
 def parse_reminder(text):
-    match = REMINDER_RE.match(text.strip())
-    if not match:
-        return None
-    amount, unit, reminder_text = match.groups()
-    seconds = int(amount) * UNIT_SECONDS[unit.lower()]
-    return seconds, reminder_text.strip()
+    t = text.strip()
+    match = REMINDER_RE_EN.match(t)
+    if match:
+        amount, unit, reminder_text = match.groups()
+        seconds = int(amount) * UNIT_SECONDS[unit.lower()]
+        return seconds, reminder_text.strip()
+    match = REMINDER_RE_AR.match(t)
+    if match:
+        amount, unit_word, reminder_text = match.groups()
+        seconds = int(amount) * AR_UNIT_SECONDS[unit_word]
+        return seconds, reminder_text.strip()
+    return None
+
+
+def strip_prefix(text, prefixes):
+    t = text.strip()
+    for prefix in prefixes:
+        if t.startswith(prefix):
+            return t[len(prefix):].strip()
+    return ""
 
 
 def create_reminder(chat_id, seconds_from_now, text):
@@ -156,30 +187,42 @@ def webhook():
     if not chat_id or not text:
         return jsonify(ok=True)
 
-    if text.startswith("/start"):
-        send_message(chat_id, "أهلاً! تكلم معي عادي، أو استخدم:\n/remind 10m اشرب مويه\n/remind 2h اتصل بأحمد\n/model لتغيير الموديل")
-    elif text.startswith("/help"):
-        send_message(chat_id, "الصيغة: /remind <رقم><m أو h أو d> <النص>\nمثال: /remind 30m راجع الإيميل\n\n/model لعرض/تغيير الموديل")
-    elif text.startswith("/model"):
-        parts = text.split(maxsplit=1)
-        if len(parts) == 1:
+    stripped = text.strip()
+    parsed_reminder = parse_reminder(text)
+
+    if stripped.startswith(START_WORDS):
+        send_message(
+            chat_id,
+            "أهلاً! تكلم معي عادي، أو استخدم:\n"
+            "تذكير 10 دقايق اشرب مويه\n"
+            "تذكير 2 ساعة اتصل بأحمد\n"
+            "الموديل — لتغيير الموديل",
+        )
+    elif stripped.startswith(HELP_WORDS):
+        send_message(
+            chat_id,
+            "الصيغة: تذكير <رقم> <دقيقة/ساعة/يوم> <النص>\n"
+            "مثال: تذكير 30 دقيقة راجع الإيميل\n\n"
+            "الموديل — لعرض/تغيير الموديل",
+        )
+    elif stripped.startswith(MODEL_WORDS):
+        rest = strip_prefix(stripped, MODEL_WORDS)
+        if not rest:
             current = get_model(chat_id)
             send_message(chat_id, "اختر الموديل:", reply_markup=build_model_keyboard(current))
         else:
-            choice = parts[1].strip().lower()
+            choice = rest.lower()
             if choice not in AVAILABLE_MODELS:
-                send_message(chat_id, "اسم غير معروف. اكتب /model لعرض القائمة.")
+                send_message(chat_id, "اسم غير معروف. اكتب الموديل لعرض القائمة.")
             else:
                 set_model(chat_id, AVAILABLE_MODELS[choice])
                 send_message(chat_id, f"تم تغيير الموديل إلى: {choice}")
-    elif text.startswith("/remind"):
-        parsed = parse_reminder(text)
-        if not parsed:
-            send_message(chat_id, "الصيغة غلط. مثال: /remind 30m راجع الإيميل")
-        else:
-            seconds, reminder_text = parsed
-            due_at = create_reminder(chat_id, seconds, reminder_text)
-            send_message(chat_id, f"تمام، بذكّرك الساعة {due_at.strftime('%H:%M UTC')} بـ: {reminder_text}")
+    elif parsed_reminder is not None:
+        seconds, reminder_text = parsed_reminder
+        due_at = create_reminder(chat_id, seconds, reminder_text)
+        send_message(chat_id, f"تمام، بذكّرك الساعة {due_at.strftime('%H:%M UTC')} بـ: {reminder_text}")
+    elif stripped.startswith(REMIND_TRIGGER_WORDS):
+        send_message(chat_id, "الصيغة غلط. مثال: تذكير 30 دقيقة راجع الإيميل")
     else:
         save_message(chat_id, "user", text)
         reply = ask_llm(chat_id, text)
