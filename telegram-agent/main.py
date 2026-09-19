@@ -11,6 +11,7 @@ TELEGRAM_WEBHOOK_SECRET = os.environ["TELEGRAM_WEBHOOK_SECRET"]
 CRON_SECRET = os.environ["CRON_SECRET"]
 GROQ_API_KEY = os.environ["GROQ_API_KEY"]
 GEMINI_API_KEY = os.environ["GEMINI_API_KEY"]
+TAVILY_API_KEY = os.environ["TAVILY_API_KEY"]
 SUPABASE_URL = os.environ["SUPABASE_URL"]
 SUPABASE_KEY = os.environ["SUPABASE_KEY"]
 
@@ -23,7 +24,7 @@ SYSTEM_PROMPT = (
     "عندك أمر تذكير حقيقي شغّال بهذا البوت: لو المستخدم طلب منك تذكيره بشي، "
     "وجّهه يكتب رسالة بصيغة 'تذكير <رقم> <دقيقة/ساعة/يوم> <النص>'، "
     "أو للتكرار 'تذكير كل يوم <النص>'. "
-    "وعنده أوامر لحفظ الملاحظات (ملاحظة <نص>) والمهام (مهمة <نص>). "
+    "وعنده أوامر لحفظ الملاحظات (ملاحظة <نص>) والمهام (مهمة <نص>) والبحث بالإنترنت (بحث <سؤال>). "
     "لا تقل إنك غير قادر على هذي الأشياء."
 )
 
@@ -61,6 +62,7 @@ NOTE_WORDS = tuple(normalize_arabic(w) for w in ("ملاحظة",))
 NOTES_LIST_WORDS = tuple(normalize_arabic(w) for w in ("ملاحظاتي", "الملاحظات"))
 TASK_WORDS = tuple(normalize_arabic(w) for w in ("مهمة",))
 TASKS_LIST_WORDS = tuple(normalize_arabic(w) for w in ("مهامي", "المهام"))
+SEARCH_WORDS = tuple(normalize_arabic(w) for w in ("بحث", "ابحث"))
 
 AVAILABLE_MODELS = {
     "gptoss": {"provider": "groq", "id": "openai/gpt-oss-120b"},
@@ -218,6 +220,31 @@ def ask_llm(chat_id, user_text):
     return ask_groq(chat_id, user_text, info["id"], system_prompt)
 
 
+def search_web(query):
+    resp = requests.post(
+        "https://api.tavily.com/search",
+        json={
+            "api_key": TAVILY_API_KEY,
+            "query": query,
+            "include_answer": True,
+            "max_results": 3,
+        },
+        timeout=30,
+    )
+    resp.raise_for_status()
+    data = resp.json()
+
+    lines = []
+    if data.get("answer"):
+        lines.append(data["answer"])
+    sources = data.get("results") or []
+    if sources:
+        lines.append("")
+        lines.append("المصادر:")
+        lines += [f"- {s['title']}: {s['url']}" for s in sources[:3]]
+    return "\n".join(lines) if lines else "ما لقيت نتائج"
+
+
 def transcribe_voice(file_id):
     file_resp = requests.get(f"{TELEGRAM_API}/getFile", params={"file_id": file_id}, timeout=15)
     file_resp.raise_for_status()
@@ -311,6 +338,7 @@ def handle_text(chat_id, text):
             "تذكير كل يوم اتصل بأحمد\n"
             "ملاحظة <نص> — لحفظ معلومة\n"
             "مهمة <نص> — لإضافة مهمة\n"
+            "بحث <سؤال> — للبحث بالإنترنت\n"
             "الموديل — لتغيير الموديل",
         )
     elif stripped.startswith(HELP_WORDS):
@@ -320,6 +348,7 @@ def handle_text(chat_id, text):
             "تذكير كل <دقيقة/ساعة/يوم> <النص> — تذكير متكرر\n"
             "ملاحظة <نص> / ملاحظاتي\n"
             "مهمة <نص> / مهامي / تم <رقم>\n"
+            "بحث <سؤال> — للبحث بالإنترنت\n"
             "الموديل — لعرض/تغيير الموديل\n"
             "تقدر كمان ترسل رسالة صوتية",
         )
@@ -367,6 +396,12 @@ def handle_text(chat_id, text):
         else:
             add_task(chat_id, content)
             send_message(chat_id, "تمت الإضافة ✅")
+    elif stripped.startswith(SEARCH_WORDS):
+        query = strip_prefix_original(original_stripped, stripped, SEARCH_WORDS)
+        if not query:
+            send_message(chat_id, "اكتب: بحث <سؤالك>")
+        else:
+            send_message(chat_id, search_web(query))
     elif parsed_recurring is not None:
         seconds, reminder_text = parsed_recurring
         due_at = create_reminder(chat_id, seconds, reminder_text, repeat_seconds=seconds)
