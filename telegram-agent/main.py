@@ -35,8 +35,34 @@ supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 app = Flask(__name__)
 
 
-def send_message(chat_id, text):
-    requests.post(f"{TELEGRAM_API}/sendMessage", json={"chat_id": chat_id, "text": text}, timeout=15)
+def send_message(chat_id, text, reply_markup=None):
+    payload = {"chat_id": chat_id, "text": text}
+    if reply_markup:
+        payload["reply_markup"] = reply_markup
+    requests.post(f"{TELEGRAM_API}/sendMessage", json=payload, timeout=15)
+
+
+def answer_callback_query(callback_query_id, text=None):
+    payload = {"callback_query_id": callback_query_id}
+    if text:
+        payload["text"] = text
+    requests.post(f"{TELEGRAM_API}/answerCallbackQuery", json=payload, timeout=15)
+
+
+def edit_message_reply_markup(chat_id, message_id, reply_markup):
+    requests.post(
+        f"{TELEGRAM_API}/editMessageReplyMarkup",
+        json={"chat_id": chat_id, "message_id": message_id, "reply_markup": reply_markup},
+        timeout=15,
+    )
+
+
+def build_model_keyboard(current_model):
+    buttons = []
+    for key, model_id in AVAILABLE_MODELS.items():
+        label = f"{key} ✅" if model_id == current_model else key
+        buttons.append([{"text": label, "callback_data": f"model:{key}"}])
+    return {"inline_keyboard": buttons}
 
 
 def save_message(chat_id, role, content):
@@ -107,6 +133,22 @@ def health():
 @app.post(f"/webhook/{TELEGRAM_WEBHOOK_SECRET}")
 def webhook():
     update = request.get_json(silent=True) or {}
+
+    callback = update.get("callback_query")
+    if callback:
+        data = callback.get("data", "")
+        chat_id = callback["message"]["chat"]["id"]
+        message_id = callback["message"]["message_id"]
+        if data.startswith("model:"):
+            key = data.split(":", 1)[1]
+            if key in AVAILABLE_MODELS:
+                set_model(chat_id, AVAILABLE_MODELS[key])
+                answer_callback_query(callback["id"], text=f"تم اختيار {key}")
+                edit_message_reply_markup(chat_id, message_id, build_model_keyboard(AVAILABLE_MODELS[key]))
+            else:
+                answer_callback_query(callback["id"], text="خيار غير معروف")
+        return jsonify(ok=True)
+
     message = update.get("message") or {}
     chat_id = message.get("chat", {}).get("id")
     text = message.get("text")
@@ -122,11 +164,7 @@ def webhook():
         parts = text.split(maxsplit=1)
         if len(parts) == 1:
             current = get_model(chat_id)
-            lines = ["اكتب /model متبوعاً باسم الموديل، مثال: /model qwen", ""]
-            for key, model_id in AVAILABLE_MODELS.items():
-                marker = " ✅" if model_id == current else ""
-                lines.append(f"{key}{marker}")
-            send_message(chat_id, "\n".join(lines))
+            send_message(chat_id, "اختر الموديل:", reply_markup=build_model_keyboard(current))
         else:
             choice = parts[1].strip().lower()
             if choice not in AVAILABLE_MODELS:
