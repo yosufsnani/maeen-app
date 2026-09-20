@@ -6,6 +6,11 @@ from datetime import datetime, timedelta, timezone
 
 import requests
 from flask import Flask, request, jsonify
+from pptx import Presentation
+from pptx.dml.color import RGBColor
+from pptx.enum.shapes import MSO_SHAPE
+from pptx.enum.text import PP_ALIGN
+from pptx.util import Inches, Pt
 from pypdf import PdfReader
 from supabase import create_client
 
@@ -79,6 +84,7 @@ NOTES_LIST_WORDS = tuple(normalize_arabic(w) for w in ("ملاحظاتي", "ال
 TASK_WORDS = tuple(normalize_arabic(w) for w in ("مهمة",))
 TASKS_LIST_WORDS = tuple(normalize_arabic(w) for w in ("مهامي", "المهام"))
 SEARCH_WORDS = tuple(normalize_arabic(w) for w in ("بحث", "ابحث"))
+PPTX_WORDS = tuple(normalize_arabic(w) for w in ("بوربوينت", "عرض تقديمي"))
 
 AVAILABLE_MODELS = {
     "gptoss": {"provider": "groq", "id": "openai/gpt-oss-120b"},
@@ -96,6 +102,15 @@ def send_message(chat_id, text, reply_markup=None):
     if reply_markup:
         payload["reply_markup"] = reply_markup
     requests.post(f"{TELEGRAM_API}/sendMessage", json=payload, timeout=15)
+
+
+def send_document(chat_id, file_bytes, filename, mime_type):
+    requests.post(
+        f"{TELEGRAM_API}/sendDocument",
+        data={"chat_id": chat_id},
+        files={"document": (filename, file_bytes, mime_type)},
+        timeout=60,
+    )
 
 
 def answer_callback_query(callback_query_id, text=None):
@@ -335,6 +350,95 @@ def extract_pdf_text(file_bytes):
     return text[:15000]
 
 
+def parse_slide_outline(raw_text):
+    lines = [l.strip() for l in raw_text.strip().splitlines() if l.strip()]
+    if not lines:
+        return None, []
+    title = lines[0].lstrip("#").strip()
+    slides = []
+    heading, bullets = None, []
+    for line in lines[1:]:
+        if line.startswith("##"):
+            if heading:
+                slides.append((heading, bullets))
+            heading = line.lstrip("#").strip()
+            bullets = []
+        elif line.startswith("-") or line.startswith("•"):
+            bullets.append(line.lstrip("-•").strip())
+    if heading:
+        slides.append((heading, bullets))
+    return title, slides
+
+
+PPTX_ACCENT = RGBColor(0x2E, 0x5B, 0xFF)
+PPTX_DARK = RGBColor(0x1A, 0x1A, 0x2E)
+PPTX_WHITE = RGBColor(0xFF, 0xFF, 0xFF)
+PPTX_TEXT = RGBColor(0x22, 0x22, 0x22)
+
+
+def build_pptx(title, slides_data):
+    prs = Presentation()
+    prs.slide_width = Inches(13.333)
+    prs.slide_height = Inches(7.5)
+    blank_layout = prs.slide_layouts[6]
+
+    title_slide = prs.slides.add_slide(blank_layout)
+    title_slide.background.fill.solid()
+    title_slide.background.fill.fore_color.rgb = PPTX_DARK
+    box = title_slide.shapes.add_textbox(Inches(1), Inches(3), Inches(11.3), Inches(1.5))
+    p = box.text_frame.paragraphs[0]
+    p.text = title
+    p.font.size = Pt(44)
+    p.font.bold = True
+    p.font.color.rgb = PPTX_WHITE
+    p.alignment = PP_ALIGN.RIGHT
+
+    for heading, bullets in slides_data:
+        slide = prs.slides.add_slide(blank_layout)
+        slide.background.fill.solid()
+        slide.background.fill.fore_color.rgb = PPTX_WHITE
+
+        bar = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, 0, 0, prs.slide_width, Inches(1.2))
+        bar.fill.solid()
+        bar.fill.fore_color.rgb = PPTX_ACCENT
+        bar.line.fill.background()
+        bp = bar.text_frame.paragraphs[0]
+        bp.text = heading
+        bp.font.size = Pt(28)
+        bp.font.bold = True
+        bp.font.color.rgb = PPTX_WHITE
+        bp.alignment = PP_ALIGN.RIGHT
+
+        body = slide.shapes.add_textbox(Inches(0.8), Inches(1.8), Inches(11.7), Inches(5))
+        body.text_frame.word_wrap = True
+        for i, bullet in enumerate(bullets):
+            para = body.text_frame.paragraphs[0] if i == 0 else body.text_frame.add_paragraph()
+            para.text = f"• {bullet}"
+            para.font.size = Pt(22)
+            para.font.color.rgb = PPTX_TEXT
+            para.alignment = PP_ALIGN.RIGHT
+
+    buf = io.BytesIO()
+    prs.save(buf)
+    buf.seek(0)
+    return buf.getvalue()
+
+
+def generate_presentation(chat_id, topic):
+    prompt = (
+        f"اكتب محتوى عرض تقديمي عن: {topic}\n\n"
+        "اكتب أول سطر بس عنوان العرض (بدون أي رمز قبله).\n"
+        "بعدها لكل شريحة اكتب سطر يبدأ بـ ## ثم عنوان الشريحة، "
+        "وتحته من 3 إلى 5 نقاط كل وحدة بسطر يبدأ بـ -.\n"
+        "اكتب من 5 إلى 7 شرائح. لا تكتب أي مقدمة أو خاتمة أو شرح إضافي، فقط المحتوى بهذا التنسيق بالضبط."
+    )
+    raw = ask_llm(chat_id, prompt)
+    title, slides = parse_slide_outline(raw)
+    if not title or not slides:
+        return None
+    return title, build_pptx(title, slides)
+
+
 def parse_reminder(text):
     t = text.strip()
     match = REMINDER_RE_EN.match(t)
@@ -410,6 +514,7 @@ def handle_text(chat_id, text):
             "ملاحظة <نص> — لحفظ معلومة\n"
             "مهمة <نص> — لإضافة مهمة\n"
             "بحث <سؤال> — للبحث بالإنترنت\n"
+            "بوربوينت <الموضوع> — لإنشاء عرض تقديمي\n"
             "أرسل صورة أو ملف PDF وأنا أقراه وأجاوبك عليه\n"
             "الموديل — لتغيير الموديل",
         )
@@ -421,6 +526,7 @@ def handle_text(chat_id, text):
             "ملاحظة <نص> / ملاحظاتي\n"
             "مهمة <نص> / مهامي / تم <رقم>\n"
             "بحث <سؤال> — للبحث بالإنترنت\n"
+            "بوربوينت <الموضوع> — لإنشاء عرض تقديمي (.pptx)\n"
             "الموديل — لعرض/تغيير الموديل\n"
             "تقدر كمان ترسل رسالة صوتية، أو صورة، أو ملف PDF",
         )
@@ -474,6 +580,21 @@ def handle_text(chat_id, text):
             send_message(chat_id, "اكتب: بحث <سؤالك>")
         else:
             send_message(chat_id, search_web(chat_id, query))
+    elif stripped.startswith(PPTX_WORDS):
+        topic = strip_prefix_original(original_stripped, stripped, PPTX_WORDS)
+        if not topic:
+            send_message(chat_id, "اكتب: بوربوينت <الموضوع>")
+        else:
+            send_message(chat_id, "جاري تجهيز العرض...")
+            result = generate_presentation(chat_id, topic)
+            if not result:
+                send_message(chat_id, "تعذر إنشاء العرض، حاول صياغة الموضوع بشكل مختلف")
+            else:
+                title, pptx_bytes = result
+                send_document(
+                    chat_id, pptx_bytes, f"{title}.pptx",
+                    "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+                )
     elif parsed_recurring is not None:
         seconds, reminder_text = parsed_recurring
         due_at = create_reminder(chat_id, seconds, reminder_text, repeat_seconds=seconds)
