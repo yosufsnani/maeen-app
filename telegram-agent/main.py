@@ -29,15 +29,20 @@ HISTORY_LIMIT = 20
 SYSTEM_PROMPT = (
     "أنت مساعد شخصي ذكي يتحدث العربية بشكل طبيعي ومختصر. "
     "استخدم سياق المحادثة السابقة للرد بما يناسب المستخدم. "
-    "عندك أمر تذكير حقيقي شغّال بهذا البوت: لو المستخدم طلب منك تذكيره بشي، "
-    "وجّهه يكتب رسالة بصيغة 'تذكير <رقم> <دقيقة/ساعة/يوم> <النص>'، "
-    "أو للتكرار 'تذكير كل يوم <النص>'. "
-    "وعنده أوامر لحفظ الملاحظات (ملاحظة <نص>) والمهام (مهمة <نص>). "
+    "عندك قدرة حقيقية تنفّذ فيها أشياء بنفسك مباشرة، بدون ما تطلب من المستخدم يكتب أوامر بصيغة معينة:\n"
+    "1) تذكير: لو طلب منك تذكيره بشي وعندك كل المعلومات اللازمة (متى بالضبط، ونص التذكير)، "
+    "احسب عدد الثواني من الوقت الحالي المعطى لك لحد الوقت المطلوب، واكتب سطر بالضبط:\n"
+    "ACTION: remind|<عدد_الثواني_من_الآن>|<عدد_ثواني_التكرار_أو_none>|<نص التذكير>\n"
+    "لو المعلومة ناقصة (ما تعرف الوقت المحدد مثلاً)، اسأله بشكل طبيعي بدون أي سطر ACTION.\n"
+    "2) حفظ ملاحظة دائمة: لو طلب منك تتذكر معلومة عنه، اكتب: ACTION: note|<النص>\n"
+    "3) إضافة مهمة: لو طلب منك تضيف مهمة لقائمته، اكتب: ACTION: task|<النص>\n"
+    "تقدر تكتب أكثر من سطر ACTION بنفس الرد لو احتجت أكثر من تنفيذ (مثلاً عدة تذكيرات دفعة وحدة). "
+    "تقدر تضيف كلام عادي بردك مع أسطر ACTION، والنظام يحذف الأسطر التقنية ويعرض للمستخدم رد طبيعي فقط. "
     "لا تقل إنك غير قادر على هذي الأشياء. "
     "لما المستخدم يرسل صورة، البوت يحلّلها ويحفظ وصفها تلقائياً كملاحظة (بتلقاها بقسم 'معلومات محفوظة عن المستخدم' إذا وجدت). "
     "لا تقل إنك ما تقدر ترى الصور أو إنك ما تتذكرها — استخدم المعلومة المحفوظة عنها للإجابة، "
-    "ولو ما لقيت شي بالملاحظات يخص سؤاله، قل له يرسل الصورة من جديد."
-    "معلوماتك عن الأحداث توقفت عند تاريخ تدريبك، وقد تكون قديمة جداً بالنسبة لتاريخ اليوم الفعلي. "
+    "ولو ما لقيت شي بالملاحظات يخص سؤاله، قل له يرسل الصورة من جديد. "
+    "معلوماتك عن الأحداث توقفت عند تاريخ تدريبك، وقد تكون قديمة جداً بالنسبة للوقت الفعلي. "
     "لو سُئلت عن نتيجة، خبر، أو أي معلومة حديثة ممكن تكون تغيّرت (نتائج مباريات، انتخابات، أسعار، أحداث جارية)، "
     "ولست متأكداً من دقتها الحالية، لا تخمّن ولا تجاوب مباشرة — بدل ذلك اكتب سطر واحد بالضبط وبدون أي كلام إضافي:\n"
     "SEARCH: <صياغة سؤال بحث واضحة ومختصرة بالعربي>\n"
@@ -69,6 +74,11 @@ ARABIC_WEEKDAYS = ["الاثنين", "الثلاثاء", "الأربعاء", "ا
 def today_str():
     now = datetime.now(SAUDI_TZ)
     return f"{ARABIC_WEEKDAYS[now.weekday()]} {now.strftime('%Y-%m-%d')}"
+
+
+def now_str():
+    now = datetime.now(SAUDI_TZ)
+    return f"{ARABIC_WEEKDAYS[now.weekday()]} {now.strftime('%Y-%m-%d %H:%M')}"
 
 
 def normalize_arabic(text):
@@ -206,7 +216,7 @@ def complete_task(chat_id, task_number):
 
 
 def build_system_prompt(chat_id):
-    prompt = SYSTEM_PROMPT + f"\n\nتاريخ اليوم الفعلي هو {today_str()} (بتوقيت السعودية). اعتمد على هذا التاريخ ويوم الأسبوع هذا دائماً، لا على افتراضاتك الداخلية أو حساباتك الخاصة عن الوقت الحالي."
+    prompt = SYSTEM_PROMPT + f"\n\nالوقت الفعلي الآن: {now_str()} (بتوقيت السعودية). اعتمد على هذا الوقت والتاريخ دائماً — لحساب أوقات التذكيرات ولمعرفة يوم الأسبوع — لا على افتراضاتك الداخلية أو حساباتك الخاصة."
     notes = get_notes(chat_id)
     if notes:
         prompt += "\n\nمعلومات محفوظة عن المستخدم:\n" + "\n".join(f"- {n}" for n in notes)
@@ -255,13 +265,54 @@ def ask_llm(chat_id, user_text):
     return ask_groq(chat_id, user_text, info["id"], system_prompt)
 
 
+ACTION_REMIND_RE = re.compile(r"^ACTION:\s*remind\|(\d+)\|(\d+|none)\|(.+)$", re.IGNORECASE)
+ACTION_NOTE_RE = re.compile(r"^ACTION:\s*note\|(.+)$", re.IGNORECASE)
+ACTION_TASK_RE = re.compile(r"^ACTION:\s*task\|(.+)$", re.IGNORECASE)
+
+
+def process_actions(chat_id, reply):
+    remaining_lines = []
+    confirmations = []
+    for line in reply.splitlines():
+        stripped_line = line.strip()
+
+        match = ACTION_REMIND_RE.match(stripped_line)
+        if match:
+            seconds, repeat, remind_text = match.groups()
+            repeat_seconds = None if repeat.lower() == "none" else int(repeat)
+            create_reminder(chat_id, int(seconds), remind_text.strip(), repeat_seconds=repeat_seconds)
+            confirmations.append(f"✅ تذكير: {remind_text.strip()}")
+            continue
+
+        match = ACTION_NOTE_RE.match(stripped_line)
+        if match:
+            save_note(chat_id, match.group(1).strip())
+            confirmations.append(f"✅ ملاحظة محفوظة: {match.group(1).strip()}")
+            continue
+
+        match = ACTION_TASK_RE.match(stripped_line)
+        if match:
+            add_task(chat_id, match.group(1).strip())
+            confirmations.append(f"✅ مهمة مضافة: {match.group(1).strip()}")
+            continue
+
+        remaining_lines.append(line)
+
+    remaining_text = "\n".join(remaining_lines).strip()
+    if confirmations and remaining_text:
+        return remaining_text + "\n\n" + "\n".join(confirmations)
+    if confirmations:
+        return "\n".join(confirmations)
+    return remaining_text
+
+
 def ask_llm_auto(chat_id, user_text):
     reply = ask_llm(chat_id, user_text)
     if reply.strip().startswith("SEARCH:"):
         query = reply.split(":", 1)[1].strip()
         if query:
             return search_web(chat_id, query)
-    return reply
+    return process_actions(chat_id, reply)
 
 
 def search_web(chat_id, query):
